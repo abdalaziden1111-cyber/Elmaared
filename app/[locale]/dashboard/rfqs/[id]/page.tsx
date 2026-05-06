@@ -87,11 +87,17 @@ export default async function ClientRfqDetailPage({
         </ul>
       </section>
 
-      {rfq.status === 'draft' ? (
-        <div className="mt-8">
-          <PublishButton rfqId={rfq.id} />
-        </div>
-      ) : null}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        {rfq.status === 'draft' ? <PublishButton rfqId={rfq.id} /> : <span />}
+        {rfq.status !== 'draft' ? (
+          <a
+            href={`/dashboard/rfqs/${rfq.id}/compare`}
+            className="text-sm font-medium text-[var(--color-action-blue)]"
+          >
+            عرض ومقارنة العروض ←
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }

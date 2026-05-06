@@ -79,8 +79,13 @@ export default async function SupplierRfqDetailPage({
         </ul>
       </section>
 
-      <div className="mt-8 rounded-2xl border border-dashed border-[var(--color-action-blue)] bg-[var(--color-action-blue)]/5 p-5 text-sm">
-        تقديم العروض يفتح في المرحلة 3.
+      <div className="mt-8 flex justify-end">
+        <a
+          href={`/supplier/rfqs/${rfq.id}/proposal`}
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-[var(--color-action-blue)] px-6 text-sm font-medium text-[var(--color-cream)]"
+        >
+          قدّم عرضك ←
+        </a>
       </div>
     </div>
   );
