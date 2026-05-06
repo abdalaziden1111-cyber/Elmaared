@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --font-arabic: var(--font-plex-arabic), system-ui, sans-serif;
+  --font-latin: var(--font-inter), system-ui, sans-serif;
+
+  --color-midnight-green: #0E3B43;
+  --color-midnight-green-700: #155560;
+  --color-midnight-green-100: #E6EFF1;
+  --color-dune-gold: #C8A24C;
+  --color-dune-gold-100: #FAF1DC;
+  --color-action-blue: #2563EB;
+  --color-action-blue-700: #1D4ED8;
+  --color-cream: #FAF8F4;
+  --color-stone-100: #F2EEE7;
+  --color-stone-300: #D8D2C7;
+  --color-stone-600: #7A766F;
+  --color-charcoal: #1A1A1A;
+  --color-success: #16A34A;
+  --color-success-100: #DCFCE7;
+  --color-warning: #F59E0B;
+  --color-warning-100: #FEF3C7;
+  --color-danger: #DC2626;
+  --color-danger-100: #FEE2E2;
+  --color-info: #0284C7;
+  --color-info-100: #E0F2FE;
+}
+
+:root {
+  /* shadcn/ui semantic tokens (HSL values without hsl() wrapper) */
+  --background: 36 33% 97%;
+  --foreground: 0 0% 10%;
+
+  --card: 36 25% 93%;
+  --card-foreground: 0 0% 10%;
+
+  --popover: 36 33% 97%;
+  --popover-foreground: 0 0% 10%;
+
+  --primary: 188 65% 16%;
+  --primary-foreground: 36 33% 97%;
+
+  --secondary: 39 53% 54%;
+  --secondary-foreground: 188 65% 16%;
+
+  --muted: 36 25% 93%;
+  --muted-foreground: 36 5% 45%;
+
+  --accent: 217 91% 53%;
+  --accent-foreground: 36 33% 97%;
+
+  --destructive: 0 73% 50%;
+  --destructive-foreground: 36 33% 97%;
+
+  --border: 35 19% 81%;
+  --input: 35 19% 81%;
+  --ring: 217 91% 53%;
+
+  --radius: 0.75rem;
+
+  /* Motion */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-position: cubic-bezier(0.4, 0, 0.6, 1);
+  --duration-micro: 150ms;
+  --duration-default: 250ms;
+  --duration-large: 400ms;
+}
+
+/* Base styles */
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Tabular numerals for numbers, codes, IBANs */
+.num,
+[dir="ltr"] .num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle grain texture on cards */
+.has-grain {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><filter id='n'><feTurbulence baseFrequency='0.9'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.03'/></svg>");
+}
+
+/* Panic button shake animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+.animate-shake { animation: shake 0.5s var(--ease-position); }
+
+/* Panic pulse — used when admin not yet present */
+@keyframes panic-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+.animate-panic-pulse { animation: panic-pulse 2s ease-in-out infinite; }
+
+/* Focus states — never remove these */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}

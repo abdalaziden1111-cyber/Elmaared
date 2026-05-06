@@ -1,0 +1,75 @@
+{
+  "common": {
+    "appName": "تطبيق المعارض",
+    "loading": "جارٍ التحميل...",
+    "error": "حدث خطأ",
+    "save": "احفظ",
+    "cancel": "إلغاء",
+    "delete": "احذف",
+    "edit": "عدّل",
+    "submit": "أرسل",
+    "back": "السابق",
+    "next": "التالي",
+    "search": "ابحث",
+    "noResults": "لا توجد نتائج",
+    "confirm": "تأكيد",
+    "yes": "نعم",
+    "no": "لا",
+    "close": "أغلق",
+    "download": "نزّل",
+    "upload": "ارفع"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "chooseRole": "اختر نوع حسابك",
+    "client": "شركة (عميل)",
+    "supplier": "مورد",
+    "clientDescription": "أبحث عن موردين لمعارضي وفعالياتي",
+    "supplierDescription": "أقدم خدمات للمعارض والفعاليات"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "rfqs": "طلباتي",
+    "discover": "استكشف الموردين",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات",
+    "proposals": "عروضي",
+    "projects": "مشاريعي",
+    "earnings": "أرباحي",
+    "reviews": "التقييمات"
+  },
+  "rfq": {
+    "create": "أنشئ طلباً",
+    "title": "عنوان الطلب",
+    "serviceType": "نوع الخدمة",
+    "booth": "تصميم وتنفيذ أجنحة",
+    "gifts": "هدايا ترويجية",
+    "event": "تنظيم فعاليات",
+    "printing": "مطبوعات",
+    "budget": "الميزانية",
+    "deadline": "الموعد النهائي",
+    "status": {
+      "draft": "مسودة",
+      "open": "مفتوح",
+      "negotiating": "قيد التفاوض",
+      "awarded": "تم الاختيار",
+      "in_escrow": "قيد الضمان",
+      "in_progress": "قيد التنفيذ",
+      "delivered": "تم التسليم",
+      "completed": "مكتمل",
+      "disputed": "نزاع",
+      "cancelled": "ملغى"
+    }
+  },
+  "currency": {
+    "symbol": "﷼",
+    "code": "SAR"
+  }
+}

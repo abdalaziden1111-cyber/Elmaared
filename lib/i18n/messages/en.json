@@ -1,0 +1,75 @@
+{
+  "common": {
+    "appName": "App Exhibition",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "noResults": "No results",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "close": "Close",
+    "download": "Download",
+    "upload": "Upload"
+  },
+  "auth": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset password",
+    "chooseRole": "Choose your account type",
+    "client": "Company (Client)",
+    "supplier": "Supplier",
+    "clientDescription": "I need suppliers for my exhibitions and events",
+    "supplierDescription": "I provide services for exhibitions and events"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "rfqs": "My RFQs",
+    "discover": "Discover Suppliers",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "proposals": "My Proposals",
+    "projects": "My Projects",
+    "earnings": "Earnings",
+    "reviews": "Reviews"
+  },
+  "rfq": {
+    "create": "Create RFQ",
+    "title": "RFQ Title",
+    "serviceType": "Service Type",
+    "booth": "Booth Design & Build",
+    "gifts": "Promotional Gifts",
+    "event": "Event Management",
+    "printing": "Print Materials",
+    "budget": "Budget",
+    "deadline": "Deadline",
+    "status": {
+      "draft": "Draft",
+      "open": "Open",
+      "negotiating": "Negotiating",
+      "awarded": "Awarded",
+      "in_escrow": "In Escrow",
+      "in_progress": "In Progress",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "disputed": "Disputed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "currency": {
+    "symbol": "SAR",
+    "code": "SAR"
+  }
+}
