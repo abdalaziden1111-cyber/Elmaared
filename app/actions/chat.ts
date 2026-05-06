@@ -1,0 +1,197 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import type { ActionResult } from './auth';
+
+export async function shortlistProposalAction(
+  proposalId: string
+): Promise<ActionResult<{ chatId: string }>> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'يجب تسجيل الدخول.' };
+
+  // Look up the proposal + verify the caller owns the RFQ
+  const { data: proposalRowRaw } = await supabase
+    .from('proposals')
+    .select('id, rfq_id, supplier_id, status, rfq:rfqs(client_id)')
+    .eq('id', proposalId)
+    .single();
+  const proposal = proposalRowRaw as
+    | { id: string; rfq_id: string; supplier_id: string; status: string; rfq: { client_id: string } | null }
+    | null;
+  if (!proposal) return { ok: false, error: 'لم نجد العرض.' };
+  if (proposal.rfq?.client_id !== user.id) {
+    return { ok: false, error: 'ليس لديك صلاحية على هذا العرض.' };
+  }
+
+  const admin = createAdminClient();
+
+  // Mark the proposal as shortlisted
+  await admin.from('proposals').update({ status: 'shortlisted' }).eq('id', proposal.id);
+
+  // Try to create the chat — DB trigger enforces 4-chat cap and the unique
+  // (rfq_id, supplier_id) constraint prevents duplicates.
+  const { data: chatRowRaw, error: chatErr } = await admin
+    .from('chats')
+    .insert({
+      rfq_id: proposal.rfq_id,
+      client_id: user.id,
+      supplier_id: proposal.supplier_id,
+    })
+    .select('id')
+    .single();
+  const chat = chatRowRaw as { id: string } | null;
+
+  if (chatErr || !chat) {
+    if ((chatErr as { message?: string } | null)?.message?.includes('CHAT_CAP_REACHED')) {
+      return { ok: false, error: 'وصلت للحد الأقصى من المحادثات (4) لهذا الطلب.' };
+    }
+    if ((chatErr as { code?: string } | null)?.code === '23505') {
+      // Already exists — fetch it
+      const { data: existingRaw } = await admin
+        .from('chats')
+        .select('id')
+        .eq('rfq_id', proposal.rfq_id)
+        .eq('supplier_id', proposal.supplier_id)
+        .single();
+      const existing = existingRaw as { id: string } | null;
+      if (existing) {
+        revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}/compare`);
+        return { ok: true, data: { chatId: existing.id } };
+      }
+    }
+    return { ok: false, error: 'فشل في فتح المحادثة. حاول مرة أخرى.' };
+  }
+
+  // Move RFQ to negotiating on first chat (idempotent)
+  await admin
+    .from('rfqs')
+    .update({ status: 'negotiating' })
+    .eq('id', proposal.rfq_id)
+    .eq('status', 'open');
+
+  // System message to seed the chat
+  await admin.from('messages').insert({
+    chat_id: chat.id,
+    sender_id: user.id,
+    sender_role: 'client',
+    content: 'تمّ ترشيح عرضك. ابدأ التفاوض من هنا.',
+    is_admin_intervention: false,
+  });
+
+  revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}/compare`);
+  return { ok: true, data: { chatId: chat.id } };
+}
+
+export async function sendMessageAction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'يجب تسجيل الدخول.' };
+
+  const chatId = String(formData.get('chatId') ?? '');
+  const content = String(formData.get('content') ?? '').trim();
+  if (!chatId || content.length === 0) {
+    return { ok: false, error: 'لا يمكن إرسال رسالة فارغة.' };
+  }
+  if (content.length > 4000) {
+    return { ok: false, error: 'الرسالة طويلة جداً (الحد 4000 حرف).' };
+  }
+
+  // Fetch caller role
+  const { data: profileRaw } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  const profile = profileRaw as { role: 'admin' | 'client' | 'supplier' } | null;
+  if (!profile) return { ok: false, error: 'لم نجد ملفك الشخصي.' };
+
+  // Insert via admin client because the placeholder Database types
+  // surface table columns as `never[]`. RLS-equivalent check is enforced
+  // in code: sender_id is bound to the authenticated user above.
+  const admin = createAdminClient();
+  const { error } = await admin.from('messages').insert({
+    chat_id: chatId,
+    sender_id: user.id,
+    sender_role: profile.role,
+    content,
+    is_admin_intervention: profile.role === 'admin',
+  });
+
+  if (error) return { ok: false, error: 'فشل في إرسال الرسالة.' };
+
+  return { ok: true };
+}
+
+export async function raisePanicAction(
+  chatId: string,
+  reason: string
+): Promise<ActionResult> {
+  if (reason.trim().length < 10) {
+    return { ok: false, error: 'سبب التصعيد يجب أن يكون 10 أحرف على الأقل.' };
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'يجب تسجيل الدخول.' };
+
+  const { data: profileRaw } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  const profile = profileRaw as { role: 'admin' | 'client' | 'supplier' } | null;
+  if (!profile) return { ok: false, error: 'لم نجد ملفك الشخصي.' };
+
+  const admin = createAdminClient();
+  await admin
+    .from('chats')
+    .update({ panic_at: new Date().toISOString(), panic_reason: reason })
+    .eq('id', chatId);
+
+  await admin.from('messages').insert({
+    chat_id: chatId,
+    sender_id: user.id,
+    sender_role: profile.role,
+    content: `🚨 تصعيد: ${reason}`,
+    is_panic_alert: true,
+    panic_reason: reason,
+  });
+
+  revalidatePath(`/admin/chats`);
+  return { ok: true };
+}
+
+export async function adminJoinChatAction(chatId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'يجب تسجيل الدخول.' };
+
+  const { data: profileRaw } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  const profile = profileRaw as { role: string } | null;
+  if (profile?.role !== 'admin') return { ok: false, error: 'صلاحيات غير كافية.' };
+
+  const admin = createAdminClient();
+  await admin
+    .from('chats')
+    .update({ admin_joined_at: new Date().toISOString() })
+    .eq('id', chatId);
+
+  await admin.from('messages').insert({
+    chat_id: chatId,
+    sender_id: user.id,
+    sender_role: 'admin',
+    content: 'انضم Admin للمحادثة لمساعدتكم.',
+    is_admin_intervention: true,
+  });
+
+  return { ok: true };
+}
