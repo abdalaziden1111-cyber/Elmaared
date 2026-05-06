@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrency } from '@/lib/utils/format';
 import { ShortlistButton } from './shortlist-button';
+import { AwardButton } from './award-button';
 
 interface ProposalRow {
   id: string;
@@ -167,6 +168,8 @@ export default async function ComparePage({
                   <span className="text-xs text-[var(--color-stone-600)]">{p.status}</span>
                   {p.status === 'submitted' || p.status === 'under_review' ? (
                     <ShortlistButton proposalId={p.id} rfqId={id} />
+                  ) : p.status === 'shortlisted' ? (
+                    <AwardButton proposalId={p.id} rfqId={id} />
                   ) : null}
                 </div>
               </div>
