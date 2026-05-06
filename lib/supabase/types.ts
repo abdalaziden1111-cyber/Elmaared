@@ -9,24 +9,29 @@ export type Json =
 // Placeholder types — replace by running:
 // pnpm dlx supabase gen types typescript --local > lib/supabase/types.ts
 // after a working local Supabase instance is up.
+//
+// Until then, Row/Insert/Update accept `any` so server-action code
+// (which knows the real shape) compiles. Replace with generated types
+// to enforce per-column safety end-to-end.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Database {
   public: {
     Tables: {
       [key: string]: {
-        Row: Record<string, unknown>;
-        Insert: Record<string, unknown>;
-        Update: Record<string, unknown>;
+        Row: Record<string, any>;
+        Insert: Record<string, any>;
+        Update: Record<string, any>;
       };
     };
     Views: {
       [key: string]: {
-        Row: Record<string, unknown>;
+        Row: Record<string, any>;
       };
     };
     Functions: {
       [key: string]: {
-        Args: Record<string, unknown>;
-        Returns: unknown;
+        Args: Record<string, any>;
+        Returns: any;
       };
     };
     Enums: {
