@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reviewSchema } from '@/schemas/review';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 export async function submitReviewAction(
@@ -71,10 +72,8 @@ export async function submitReviewAction(
   });
 
   if (error) {
-    if ((error as { code?: string } | null)?.code === '23505') {
-      return { ok: false, error: 'لقد قيّمت هذا المشروع من قبل.' };
-    }
-    return { ok: false, error: 'فشل في حفظ التقييم.' };
+    const friendly = mapPostgresError(error, 'حفظ التقييم');
+    return { ok: false, error: friendly.messageAr };
   }
 
   revalidatePath(`/dashboard/rfqs/${rfqId}`);

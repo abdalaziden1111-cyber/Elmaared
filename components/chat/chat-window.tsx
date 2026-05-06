@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessageAction } from '@/app/actions/chat';
 import { cn } from '@/lib/utils/cn';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, WifiOff } from 'lucide-react';
 
 export interface ChatMessage {
   id: string;
@@ -25,6 +25,11 @@ interface ChatWindowProps {
   initialMessages: ChatMessage[];
 }
 
+type RealtimeStatus = 'connecting' | 'connected' | 'reconnecting' | 'offline';
+
+const POLL_FALLBACK_INTERVAL_MS = 8_000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
+
 export function ChatWindow({
   chatId,
   currentUserId,
@@ -34,32 +39,115 @@ export function ChatWindow({
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
   const [pending, startTransition] = useTransition();
+  const [status, setStatus] = useState<RealtimeStatus>('connecting');
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to new messages
+  // Realtime subscription with exponential-backoff reconnect. If the channel
+  // stays offline (network loss, transient ws error, server churn) we drop
+  // into a polling fallback so the user still sees new messages, just at
+  // a slower cadence — better than a silent dead chat window.
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`chat:${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        (payload) => {
-          const m = payload.new as ChatMessage;
-          setMessages((prev) =>
-            prev.some((p) => p.id === m.id) ? prev : [...prev, m]
-          );
-        }
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let attempt = 0;
+
+    function appendIfNew(m: ChatMessage) {
+      setMessages((prev) =>
+        prev.some((p) => p.id === m.id) ? prev : [...prev, m]
+      );
+    }
+
+    async function pollOnce() {
+      // Catch up on messages we missed during a disconnect. Pull the last 50
+      // — the dedupe in appendIfNew handles overlap with what we already have.
+      const { data } = await supabase
+        .from('messages')
+        .select(
+          'id, chat_id, sender_id, sender_role, content, is_admin_intervention, is_panic_alert, panic_reason, created_at'
+        )
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      const rows = (data ?? []) as unknown as ChatMessage[];
+      [...rows].reverse().forEach(appendIfNew);
+    }
+
+    function startPollFallback() {
+      if (pollTimer) return;
+      void pollOnce();
+      pollTimer = setInterval(() => void pollOnce(), POLL_FALLBACK_INTERVAL_MS);
+    }
+
+    function stopPollFallback() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function scheduleReconnect() {
+      if (cancelled) return;
+      attempt += 1;
+      const delay = Math.min(
+        MAX_RECONNECT_DELAY_MS,
+        500 * Math.pow(2, attempt - 1)
+      );
+      setStatus(attempt === 1 ? 'reconnecting' : 'offline');
+      // After two consecutive failures, kick off polling fallback so the
+      // user keeps receiving messages even if the websocket never recovers.
+      if (attempt >= 2) startPollFallback();
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    }
+
+    function connect() {
+      if (cancelled) return;
+      if (channel) {
+        void supabase.removeChannel(channel);
+        channel = null;
+      }
+      setStatus(attempt === 0 ? 'connecting' : 'reconnecting');
+      channel = supabase
+        .channel(`chat:${chatId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=eq.${chatId}`,
+          },
+          (payload) => appendIfNew(payload.new as ChatMessage)
+        )
+        .subscribe((subStatus) => {
+          if (cancelled) return;
+          if (subStatus === 'SUBSCRIBED') {
+            attempt = 0;
+            stopPollFallback();
+            setStatus('connected');
+          } else if (
+            subStatus === 'CHANNEL_ERROR' ||
+            subStatus === 'TIMED_OUT' ||
+            subStatus === 'CLOSED'
+          ) {
+            scheduleReconnect();
+          }
+        });
+    }
+
+    connect();
 
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      stopPollFallback();
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [chatId]);
 
@@ -80,7 +168,7 @@ export function ChatWindow({
     startTransition(async () => {
       const result = await sendMessageAction(null, fd);
       if (!result.ok) {
-        // restore draft on failure
+        // restore draft so the user doesn't lose what they typed
         setDraft(content);
       }
     });
@@ -88,6 +176,25 @@ export function ChatWindow({
 
   return (
     <div className="flex h-[calc(100vh-180px)] flex-col rounded-2xl border border-[var(--color-stone-300)] bg-white">
+      {status !== 'connected' ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            'flex items-center gap-2 border-b px-3 py-1.5 text-xs',
+            status === 'offline'
+              ? 'border-[var(--color-warning-100)] bg-[var(--color-warning-100)] text-[var(--color-warning)]'
+              : 'border-[var(--color-stone-200)] bg-[var(--color-stone-100)] text-[var(--color-stone-600)]'
+          )}
+        >
+          {status === 'offline' ? <WifiOff className="size-3" /> : null}
+          {status === 'connecting' && 'جارٍ الاتصال…'}
+          {status === 'reconnecting' && 'إعادة الاتصال…'}
+          {status === 'offline' &&
+            'لا يوجد اتصال مباشر — نتحقق من الرسائل كل بضع ثوانٍ.'}
+        </div>
+      ) : null}
+
       <div ref={scrollerRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <p className="text-center text-sm text-[var(--color-stone-600)]">
@@ -96,7 +203,11 @@ export function ChatWindow({
         ) : (
           <ul className="flex flex-col gap-3">
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} mine={m.sender_id === currentUserId} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                mine={m.sender_id === currentUserId}
+              />
             ))}
           </ul>
         )}

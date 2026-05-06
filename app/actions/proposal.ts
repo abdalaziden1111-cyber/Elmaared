@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { proposalSchema } from '@/schemas/proposal';
 import { scoreProposal } from '@/lib/ai/score-proposal';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 export async function submitProposalAction(
@@ -81,10 +82,8 @@ export async function submitProposalAction(
   const proposal = proposalRaw as { id: string } | null;
 
   if (proposalError || !proposal) {
-    if ((proposalError as { code?: string } | null)?.code === '23505') {
-      return { ok: false, error: 'لقد قدّمت عرضاً لهذا الطلب من قبل.' };
-    }
-    return { ok: false, error: 'فشل في حفظ العرض. حاول مرة أخرى.' };
+    const friendly = mapPostgresError(proposalError, 'حفظ العرض');
+    return { ok: false, error: friendly.messageAr };
   }
 
   // Pull RFQ context for scoring (admin client bypasses RLS — supplier wouldn't see all fields normally)

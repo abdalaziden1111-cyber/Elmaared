@@ -11,6 +11,7 @@ import { eventDetailsSchema } from '@/schemas/rfq/event';
 import { printingDetailsSchema } from '@/schemas/rfq/printing';
 import { sendEmail } from '@/lib/email/resend';
 import { rfqMatchEmail } from '@/lib/email/templates';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 type ServiceType = 'booth' | 'gifts' | 'event' | 'printing';
@@ -118,7 +119,8 @@ export async function createRfqAction(
     | null;
 
   if (rfqError || !rfq) {
-    return { ok: false, error: 'فشل في حفظ الطلب. حاول مرة أخرى.' };
+    const friendly = mapPostgresError(rfqError, 'حفظ الطلب');
+    return { ok: false, error: friendly.messageAr };
   }
 
   await admin.from('audit_logs').insert({

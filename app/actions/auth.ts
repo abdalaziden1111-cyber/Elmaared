@@ -12,6 +12,8 @@ import {
   updatePasswordSchema,
 } from '@/schemas/auth';
 import { getDashboardPath } from '@/lib/auth/permissions';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { normalizeSaudiPhone } from '@/lib/utils/phone';
 import type { Database } from '@/lib/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -69,11 +71,17 @@ export async function signupClientAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
+  // Canonicalize phone before validation so users can enter local-format
+  // (0512..., +966 51 234 5678, etc.) and our regex schema still passes.
+  const phoneInput = formData.get('phone');
+  const normalizedPhone =
+    typeof phoneInput === 'string' ? normalizeSaudiPhone(phoneInput) : null;
+
   const parsed = signupClientSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
     fullName: formData.get('fullName'),
-    phone: formData.get('phone'),
+    phone: normalizedPhone ?? phoneInput,
     companyName: formData.get('companyName'),
     legalName: formData.get('legalName') || undefined,
     crNumber: formData.get('crNumber'),
@@ -141,12 +149,11 @@ export async function signupClientAction(
   const company = companyRaw as { id: string } | null;
 
   if (companyError || !company) {
+    // Roll back the auth user + profile to keep the row counts consistent
     await admin.from('profiles').delete().eq('id', authData.user.id);
     await admin.auth.admin.deleteUser(authData.user.id);
-    if ((companyError as { code?: string } | null)?.code === '23505') {
-      return { ok: false, error: 'رقم السجل التجاري مسجّل بالفعل لشركة أخرى.' };
-    }
-    return { ok: false, error: 'حدث خطأ في تسجيل بيانات الشركة. حاول مرة أخرى.' };
+    const friendly = mapPostgresError(companyError, 'تسجيل بيانات الشركة');
+    return { ok: false, error: friendly.messageAr };
   }
 
   await admin.from('audit_logs').insert({
@@ -182,11 +189,15 @@ export async function signupSupplierAction(
     return { ok: false, error: 'بيانات التخصصات أو المدن غير صحيحة.' };
   }
 
+  const phoneInput = formData.get('phone');
+  const normalizedPhone =
+    typeof phoneInput === 'string' ? normalizeSaudiPhone(phoneInput) : null;
+
   const parsed = signupSupplierSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
     fullName: formData.get('fullName'),
-    phone: formData.get('phone'),
+    phone: normalizedPhone ?? phoneInput,
     companyName: formData.get('companyName'),
     legalName: formData.get('legalName') || undefined,
     crNumber: formData.get('crNumber'),
@@ -260,10 +271,8 @@ export async function signupSupplierAction(
   if (supplierError) {
     await admin.from('profiles').delete().eq('id', authData.user.id);
     await admin.auth.admin.deleteUser(authData.user.id);
-    if ((supplierError as { code?: string } | null)?.code === '23505') {
-      return { ok: false, error: 'رقم السجل التجاري مسجّل بالفعل.' };
-    }
-    return { ok: false, error: 'فشل في تسجيل بيانات المورد.' };
+    const friendly = mapPostgresError(supplierError, 'تسجيل بيانات المورد');
+    return { ok: false, error: friendly.messageAr };
   }
 
   await admin.from('audit_logs').insert({

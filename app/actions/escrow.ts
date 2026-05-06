@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireRole } from '@/lib/auth/require-role';
+import { isSafeHttpsUrl } from '@/lib/utils/url';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 export async function uploadInitialReceiptAction(
@@ -18,6 +20,15 @@ export async function uploadInitialReceiptAction(
   const receiptUrl = String(formData.get('receiptUrl') ?? '').trim();
   if (!escrowId || !receiptUrl) {
     return { ok: false, error: 'رابط الإيصال مطلوب.' };
+  }
+  // Defense-in-depth: only accept HTTPS URLs to public hosts so an admin
+  // who clicks the receipt later can't be SSRF'd into a cloud-metadata
+  // endpoint or fed a javascript:/data:/file: payload.
+  if (!isSafeHttpsUrl(receiptUrl)) {
+    return {
+      ok: false,
+      error: 'رابط الإيصال يجب أن يكون HTTPS عام (Drive، Dropbox، رابط الصورة من البنك).',
+    };
   }
 
   const admin = createAdminClient();

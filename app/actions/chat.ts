@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { mapPostgresError, isDuplicateError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 export async function shortlistProposalAction(
@@ -45,11 +46,13 @@ export async function shortlistProposalAction(
   const chat = chatRowRaw as { id: string } | null;
 
   if (chatErr || !chat) {
+    // The DB trigger raises a custom message — keep the special-case check
+    // because mapPostgresError doesn't know about app-level invariants.
     if ((chatErr as { message?: string } | null)?.message?.includes('CHAT_CAP_REACHED')) {
       return { ok: false, error: 'وصلت للحد الأقصى من المحادثات (4) لهذا الطلب.' };
     }
-    if ((chatErr as { code?: string } | null)?.code === '23505') {
-      // Already exists — fetch it
+    if (isDuplicateError(chatErr)) {
+      // Already exists — make the action idempotent by returning the existing chat
       const { data: existingRaw } = await admin
         .from('chats')
         .select('id')
@@ -62,7 +65,8 @@ export async function shortlistProposalAction(
         return { ok: true, data: { chatId: existing.id } };
       }
     }
-    return { ok: false, error: 'فشل في فتح المحادثة. حاول مرة أخرى.' };
+    const friendly = mapPostgresError(chatErr, 'فتح المحادثة');
+    return { ok: false, error: friendly.messageAr };
   }
 
   // Move RFQ to negotiating on first chat (idempotent)
