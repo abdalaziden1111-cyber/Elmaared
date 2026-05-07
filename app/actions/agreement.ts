@@ -7,6 +7,7 @@ import { agreementUnderstandingSchema } from '@/schemas/agreement';
 import { analyzeAgreement } from '@/lib/ai/analyze-agreement';
 import { safeAfter } from '@/lib/utils/safe-after';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 export async function awardWinnerAction(
@@ -83,12 +84,12 @@ export async function awardWinnerAction(
     return { ok: false, error: friendly.messageAr };
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    actor_role: 'client',
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'client',
     action: 'rfq_awarded',
-    resource_type: 'rfq',
-    resource_id: proposal.rfq_id,
+    resourceType: 'rfq',
+    resourceId: proposal.rfq_id,
     metadata: { winning_proposal_id: proposal.id, agreement_id: agreement.id },
   });
 

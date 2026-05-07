@@ -11,11 +11,15 @@ import { log } from '@/lib/utils/logger';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
+// Loose admin type so we accept either the real Supabase admin client
+// (whose insert() returns a chainable PostgrestFilterBuilder, not a true
+// Promise) or our test-mock equivalent. The runtime contract: the value
+// returned by .insert(row) is awaitable and resolves to {error: ... | null}.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface MinimalAdmin {
-  from(table: 'audit_logs'): {
-    insert(row: AuditInsert): Promise<{ error: { message?: string } | null }>;
-  };
+  from(table: 'audit_logs'): { insert(row: AuditInsert): any };
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface AuditInsert {
   actor_id: string | null;

@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { proposalSchema } from '@/schemas/proposal';
 import { scoreProposal } from '@/lib/ai/score-proposal';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 export async function submitProposalAction(
@@ -132,12 +133,12 @@ export async function submitProposalAction(
     , { proposal_id: proposal.id, rfq_id: rfqId });
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    actor_role: 'supplier',
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'supplier',
     action: 'proposal_submitted',
-    resource_type: 'proposal',
-    resource_id: proposal.id,
+    resourceType: 'proposal',
+    resourceId: proposal.id,
     metadata: { rfq_id: rfqId },
   });
 

@@ -12,6 +12,7 @@ import { printingDetailsSchema } from '@/schemas/rfq/printing';
 import { sendEmail } from '@/lib/email/resend';
 import { rfqMatchEmail } from '@/lib/email/templates';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 type ServiceType = 'booth' | 'gifts' | 'event' | 'printing';
@@ -123,12 +124,12 @@ export async function createRfqAction(
     return { ok: false, error: friendly.messageAr };
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    actor_role: 'client',
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'client',
     action: status === 'open' ? 'rfq_published' : 'rfq_drafted',
-    resource_type: 'rfq',
-    resource_id: rfq.id,
+    resourceType: 'rfq',
+    resourceId: rfq.id,
   });
 
   // Fan out emails to matching suppliers — fire-and-forget but logged

@@ -14,6 +14,7 @@ import {
 import { getDashboardPath } from '@/lib/auth/permissions';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { normalizeSaudiPhone } from '@/lib/utils/phone';
+import { recordAudit } from '@/lib/audit/record';
 import type { Database } from '@/lib/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -156,12 +157,12 @@ export async function signupClientAction(
     return { ok: false, error: friendly.messageAr };
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: authData.user.id,
-    actor_role: 'client',
+  await recordAudit(admin, {
+    actorId: authData.user.id,
+    actorRole: 'client',
     action: 'signup_client',
-    resource_type: 'profile',
-    resource_id: authData.user.id,
+    resourceType: 'profile',
+    resourceId: authData.user.id,
     metadata: { company_id: company.id },
   });
 
@@ -275,13 +276,16 @@ export async function signupSupplierAction(
     return { ok: false, error: friendly.messageAr };
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: authData.user.id,
-    actor_role: 'supplier',
+  await recordAudit(admin, {
+    actorId: authData.user.id,
+    actorRole: 'supplier',
     action: 'signup_supplier',
-    resource_type: 'supplier',
-    resource_id: authData.user.id,
-    metadata: { specializations: parsed.data.specializations, cities: parsed.data.cities },
+    resourceType: 'supplier',
+    resourceId: authData.user.id,
+    metadata: {
+      specializations: parsed.data.specializations,
+      cities: parsed.data.cities,
+    },
   });
 
   return { ok: true, data: { redirectTo: '/auth/verify-email' } };

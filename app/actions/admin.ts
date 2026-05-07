@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 export async function approveSupplierAction(supplierId: string): Promise<ActionResult> {
@@ -23,12 +24,12 @@ export async function approveSupplierAction(supplierId: string): Promise<ActionR
     return { ok: false, error: 'فشل في اعتماد المورد. حاول مرة أخرى.' };
   }
 
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    actor_role: 'admin',
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'admin',
     action: 'approve_supplier',
-    resource_type: 'supplier',
-    resource_id: supplierId,
+    resourceType: 'supplier',
+    resourceId: supplierId,
   });
 
   revalidatePath('/admin/suppliers/pending');
@@ -58,12 +59,12 @@ export async function rejectSupplierAction(
 
   if (error) return { ok: false, error: 'فشل في رفض المورد.' };
 
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    actor_role: 'admin',
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'admin',
     action: 'reject_supplier',
-    resource_type: 'supplier',
-    resource_id: supplierId,
+    resourceType: 'supplier',
+    resourceId: supplierId,
     metadata: { reason },
   });
 
