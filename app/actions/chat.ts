@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { mapPostgresError, isDuplicateError } from '@/lib/utils/postgres-errors';
+import { buildNotification } from '@/lib/notifications/build';
 import type { ActionResult } from './auth';
 
 export async function shortlistProposalAction(
@@ -84,6 +85,42 @@ export async function shortlistProposalAction(
     content: 'تمّ ترشيح عرضك. ابدأ التفاوض من هنا.',
     is_admin_intervention: false,
   });
+
+  // Notify the supplier (in-app) that they've been shortlisted. The
+  // supplier_id on the proposal is the suppliers.id, but the notifications
+  // table targets profiles.id — look up owner_id.
+  const { data: supplierRowRaw } = await admin
+    .from('suppliers')
+    .select('owner_id')
+    .eq('id', proposal.supplier_id)
+    .single();
+  const supplierOwner = supplierRowRaw as { owner_id: string } | null;
+
+  // Pull the rfq_number for the notification body
+  const { data: rfqRowRaw } = await admin
+    .from('rfqs')
+    .select('rfq_number')
+    .eq('id', proposal.rfq_id)
+    .single();
+  const rfqRow = rfqRowRaw as { rfq_number: string } | null;
+
+  if (supplierOwner && rfqRow) {
+    const payload = buildNotification({
+      type: 'proposal_shortlisted',
+      rfqNumber: rfqRow.rfq_number,
+      chatId: chat.id,
+    });
+    await admin.from('notifications').insert({
+      user_id: supplierOwner.owner_id,
+      type: 'proposal_shortlisted',
+      title: payload.title,
+      body: payload.body,
+      link: payload.link,
+      rfq_id: proposal.rfq_id,
+      proposal_id: proposal.id,
+      chat_id: chat.id,
+    });
+  }
 
   revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}/compare`);
   return { ok: true, data: { chatId: chat.id } };

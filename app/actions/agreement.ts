@@ -8,6 +8,7 @@ import { analyzeAgreement } from '@/lib/ai/analyze-agreement';
 import { safeAfter } from '@/lib/utils/safe-after';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
+import { buildNotification } from '@/lib/notifications/build';
 import type { ActionResult } from './auth';
 
 export async function awardWinnerAction(
@@ -92,6 +93,38 @@ export async function awardWinnerAction(
     resourceId: proposal.rfq_id,
     metadata: { winning_proposal_id: proposal.id, agreement_id: agreement.id },
   });
+
+  // Notify the winner. Look up the supplier's profile id (owner_id) and
+  // the rfq_number for the message body.
+  const { data: winnerRaw } = await admin
+    .from('suppliers')
+    .select('owner_id')
+    .eq('id', proposal.supplier_id)
+    .single();
+  const winnerProfile = winnerRaw as { owner_id: string } | null;
+  const { data: rfqMetaRaw } = await admin
+    .from('rfqs')
+    .select('rfq_number')
+    .eq('id', proposal.rfq_id)
+    .single();
+  const rfqMeta = rfqMetaRaw as { rfq_number: string } | null;
+
+  if (winnerProfile && rfqMeta) {
+    const payload = buildNotification({
+      type: 'proposal_accepted',
+      rfqNumber: rfqMeta.rfq_number,
+      rfqId: proposal.rfq_id,
+    });
+    await admin.from('notifications').insert({
+      user_id: winnerProfile.owner_id,
+      type: 'proposal_accepted',
+      title: payload.title,
+      body: payload.body,
+      link: payload.link,
+      rfq_id: proposal.rfq_id,
+      proposal_id: proposal.id,
+    });
+  }
 
   revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}`);
   return { ok: true, data: { agreementId: agreement.id } };

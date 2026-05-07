@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reviewSchema } from '@/schemas/review';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { recordAudit } from '@/lib/audit/record';
+import { requireRole } from '@/lib/auth/require-role';
 import type { ActionResult } from './auth';
 
 export async function submitReviewAction(
@@ -117,6 +119,104 @@ export async function openDisputeAction(
 
   await admin.from('rfqs').update({ status: 'disputed' }).eq('id', rfqId);
 
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: profile.role,
+    action: 'dispute_opened',
+    resourceType: 'rfq',
+    resourceId: rfqId,
+    metadata: { category },
+  });
+
   revalidatePath('/admin/disputes');
+  return { ok: true };
+}
+
+// ───────────────────────────────────────────────────────────
+// ADMIN: RESOLVE DISPUTE
+// ───────────────────────────────────────────────────────────
+export interface ResolveDisputeInput {
+  disputeId: string;
+  resolution: string;
+  inFavorOf: 'client' | 'supplier' | 'shared';
+  refundDecision?: number | null;
+  resumeRfqStatus: 'in_progress' | 'completed' | 'cancelled';
+}
+
+export async function adminResolveDisputeAction(
+  args: ResolveDisputeInput
+): Promise<ActionResult> {
+  const { user } = await requireRole(['admin']);
+
+  if (!args.disputeId) {
+    return { ok: false, error: 'معرّف النزاع مطلوب.' };
+  }
+  if (!args.resolution || args.resolution.trim().length < 20) {
+    return {
+      ok: false,
+      error: 'القرار يجب أن يكون 20 حرفاً على الأقل.',
+    };
+  }
+  if (
+    args.refundDecision != null &&
+    (!Number.isFinite(args.refundDecision) || args.refundDecision < 0)
+  ) {
+    return { ok: false, error: 'مبلغ الاسترداد غير صالح.' };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: disputeRowRaw } = await admin
+    .from('disputes')
+    .select('id, rfq_id, status')
+    .eq('id', args.disputeId)
+    .single();
+  const dispute = disputeRowRaw as
+    | { id: string; rfq_id: string; status: string }
+    | null;
+  if (!dispute) return { ok: false, error: 'لم نجد النزاع.' };
+  if (dispute.status !== 'open') {
+    return { ok: false, error: 'النزاع تم إغلاقه بالفعل.' };
+  }
+
+  const now = new Date().toISOString();
+  const { error: updateErr } = await admin
+    .from('disputes')
+    .update({
+      status: 'resolved',
+      resolution: args.resolution.trim(),
+      resolution_in_favor_of: args.inFavorOf,
+      refund_decision: args.refundDecision ?? null,
+      resolved_at: now,
+      resolved_by: user.id,
+    })
+    .eq('id', args.disputeId);
+  if (updateErr) {
+    const friendly = mapPostgresError(updateErr, 'حفظ قرار النزاع');
+    return { ok: false, error: friendly.messageAr };
+  }
+
+  // Restore the RFQ to a workable status. The state machine validates
+  // the target — invalid combos (e.g. dispute → open) are rejected.
+  await admin
+    .from('rfqs')
+    .update({ status: args.resumeRfqStatus })
+    .eq('id', dispute.rfq_id);
+
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'admin',
+    action: 'dispute_resolved',
+    resourceType: 'dispute',
+    resourceId: args.disputeId,
+    metadata: {
+      in_favor_of: args.inFavorOf,
+      refund: args.refundDecision ?? 0,
+      rfq_status: args.resumeRfqStatus,
+    },
+  });
+
+  revalidatePath('/admin/disputes');
+  revalidatePath(`/admin/disputes/${args.disputeId}`);
   return { ok: true };
 }
