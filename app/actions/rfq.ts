@@ -2,8 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeAfter } from '@/lib/utils/safe-after';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { boothDetailsSchema } from '@/schemas/rfq/booth';
 import { giftsDetailsSchema } from '@/schemas/rfq/gifts';
@@ -131,19 +131,23 @@ export async function createRfqAction(
     resource_id: rfq.id,
   });
 
-  // Fan out emails to matching suppliers — fire-and-forget
+  // Fan out emails to matching suppliers — fire-and-forget but logged
+  // via safeAfter so any send failure surfaces in the structured logger.
   if (status === 'open') {
-    after(async () => {
-      await fanoutRfqMatchEmails({
-        rfqId: rfq.id,
-        rfqNumber: rfq.rfq_number,
-        serviceType: input.serviceType,
-        city: rfq.exhibition_city,
-        budgetMin: input.budgetMin ?? null,
-        budgetMax: input.budgetMax ?? null,
-        deadline: rfq.proposals_deadline,
-      });
-    });
+    safeAfter(
+      'rfq_match_fanout',
+      () =>
+        fanoutRfqMatchEmails({
+          rfqId: rfq.id,
+          rfqNumber: rfq.rfq_number,
+          serviceType: input.serviceType,
+          city: rfq.exhibition_city,
+          budgetMin: input.budgetMin ?? null,
+          budgetMax: input.budgetMax ?? null,
+          deadline: rfq.proposals_deadline,
+        }),
+      { rfq_id: rfq.id }
+    );
   }
 
   revalidatePath('/dashboard/rfqs');
@@ -249,17 +253,20 @@ export async function publishRfqAction(rfqId: string): Promise<ActionResult> {
 
   if (error || !rfq) return { ok: false, error: 'فشل في نشر الطلب.' };
 
-  after(async () => {
-    await fanoutRfqMatchEmails({
-      rfqId: rfq.id,
-      rfqNumber: rfq.rfq_number,
-      serviceType: rfq.service_type,
-      city: rfq.exhibition_city,
-      budgetMin: rfq.budget_min,
-      budgetMax: rfq.budget_max,
-      deadline: rfq.proposals_deadline,
-    });
-  });
+  safeAfter(
+    'rfq_match_fanout',
+    () =>
+      fanoutRfqMatchEmails({
+        rfqId: rfq.id,
+        rfqNumber: rfq.rfq_number,
+        serviceType: rfq.service_type,
+        city: rfq.exhibition_city,
+        budgetMin: rfq.budget_min,
+        budgetMax: rfq.budget_max,
+        deadline: rfq.proposals_deadline,
+      }),
+    { rfq_id: rfq.id }
+  );
 
   revalidatePath(`/dashboard/rfqs/${rfqId}`);
   revalidatePath('/supplier/rfqs');

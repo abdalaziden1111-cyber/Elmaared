@@ -1,11 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { agreementUnderstandingSchema } from '@/schemas/agreement';
 import { analyzeAgreement } from '@/lib/ai/analyze-agreement';
+import { safeAfter } from '@/lib/utils/safe-after';
+import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import type { ActionResult } from './auth';
 
 export async function awardWinnerAction(
@@ -78,7 +79,8 @@ export async function awardWinnerAction(
     .single();
   const agreement = agreementRowRaw as { id: string } | null;
   if (agErr || !agreement) {
-    return { ok: false, error: 'فشل في إنشاء الاتفاق.' };
+    const friendly = mapPostgresError(agErr, 'إنشاء الاتفاق');
+    return { ok: false, error: friendly.messageAr };
   }
 
   await admin.from('audit_logs').insert({
@@ -207,15 +209,18 @@ export async function submitUnderstandingAction(
       | null;
 
     if (rfq && prop) {
-      after(async () => {
-        await analyzeAgreement({
-          agreementId: ag.id,
-          rfqTitle: rfq.title,
-          proposalSummary: `السعر ${prop.total_price.toLocaleString('en')} ﷼ — مدة التسليم ${prop.delivery_days} يوم. ${prop.description ?? ''}\n${prop.scope_of_work ?? ''}`,
-          clientUnderstanding: updatedClient,
-          supplierUnderstanding: updatedSupplier,
-        });
-      });
+      safeAfter(
+        'ai_analyze_agreement',
+        () =>
+          analyzeAgreement({
+            agreementId: ag.id,
+            rfqTitle: rfq.title,
+            proposalSummary: `السعر ${prop.total_price.toLocaleString('en')} ﷼ — مدة التسليم ${prop.delivery_days} يوم. ${prop.description ?? ''}\n${prop.scope_of_work ?? ''}`,
+            clientUnderstanding: updatedClient,
+            supplierUnderstanding: updatedSupplier,
+          }),
+        { agreement_id: ag.id }
+      );
     }
   }
 

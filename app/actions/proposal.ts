@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeAfter } from '@/lib/utils/safe-after';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { proposalSchema } from '@/schemas/proposal';
 import { scoreProposal } from '@/lib/ai/score-proposal';
@@ -104,8 +104,8 @@ export async function submitProposalAction(
     | null;
 
   if (rfq) {
-    after(async () => {
-      await scoreProposal({
+    safeAfter('ai_score_proposal', () =>
+      scoreProposal({
         proposalId: proposal.id,
         rfq: {
           title: rfq.title,
@@ -128,8 +128,8 @@ export async function submitProposalAction(
           completedOrders: supplier.total_completed_orders,
           yearsOfExperience: supplier.years_of_experience,
         },
-      });
-    });
+      })
+    , { proposal_id: proposal.id, rfq_id: rfqId });
   }
 
   await admin.from('audit_logs').insert({
