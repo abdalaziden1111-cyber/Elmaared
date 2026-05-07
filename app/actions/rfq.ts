@@ -13,6 +13,10 @@ import { sendEmail } from '@/lib/email/resend';
 import { rfqMatchEmail } from '@/lib/email/templates';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
+import {
+  filterMatchingSuppliers,
+  type MatchCandidate,
+} from '@/lib/matching/suppliers';
 import type { ActionResult } from './auth';
 
 type ServiceType = 'booth' | 'gifts' | 'event' | 'printing';
@@ -175,17 +179,12 @@ async function fanoutRfqMatchEmails(args: {
     .eq('status', 'approved')
     .contains('specializations', [args.serviceType]);
 
-  const matches = (matchesRaw ?? []) as Array<{
-    id: string;
-    owner_id: string;
-    company_name: string;
-    cities: string[];
-    specializations: string[];
-  }>;
+  const matches = (matchesRaw ?? []) as MatchCandidate[];
 
-  const filtered = matches.filter(
-    (s) => !args.city || s.cities.length === 0 || s.cities.includes(args.city)
-  );
+  const filtered = filterMatchingSuppliers(matches, {
+    serviceType: args.serviceType,
+    city: args.city,
+  });
   if (filtered.length === 0) return;
 
   // Look up emails via auth.admin

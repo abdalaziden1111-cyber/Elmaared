@@ -2,6 +2,12 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { aiGateway, PROPOSAL_SCORING_MODEL } from './gateway';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  SCORE_PROPOSAL_SYSTEM,
+  buildScoreProposalPrompt,
+  type ScoreProposalPromptInput,
+} from './prompts';
+import { log } from '@/lib/utils/logger';
 
 export const scoreSchema = z.object({
   score: z.number().min(0).max(100).describe('Overall fit score 0-100'),
@@ -17,40 +23,9 @@ export const scoreSchema = z.object({
   concerns: z.array(z.string()).max(5),
 });
 
-const SCORING_SYSTEM = `أنت مستشار شراء B2B في السعودية. مهمتك تقييم عرض مورد لطلب RFQ.
-ركّز على:
-- ملاءمة السعر للميزانية المعلنة
-- واقعية مدة التسليم مقارنة بالموعد النهائي
-- اكتمال نطاق العمل والشمولية
-- جودة الكتابة والاحترافية
-- سجل المورد (التقييم وعدد المشاريع)
-
-أعد التقييم بصيغة JSON تطابق المخطط المطلوب فقط — لا نص قبل أو بعد.
-الملخص واللوائح يجب أن تكون بالعربية، صريحة، وموضوعية.`;
-
-interface ScoreInput {
+// System prompt + input shape moved to lib/ai/prompts.ts for testability.
+interface ScoreInput extends ScoreProposalPromptInput {
   proposalId: string;
-  rfq: {
-    title: string;
-    serviceType: string;
-    budgetMin: number | null;
-    budgetMax: number | null;
-    deadline: string | null;
-    details: Record<string, unknown>;
-  };
-  proposal: {
-    totalPrice: number;
-    deliveryDays: number;
-    description: string | null;
-    scopeOfWork: string | null;
-    paymentTerms: string | null;
-  };
-  supplier: {
-    companyName: string;
-    averageRating: number | null;
-    completedOrders: number | null;
-    yearsOfExperience: number | null;
-  };
 }
 
 /**
@@ -73,13 +48,14 @@ export async function scoreProposal(input: ScoreInput): Promise<void> {
     return;
   }
 
-  const prompt = JSON.stringify(input, null, 2);
+  const { proposalId: _omit, ...promptInput } = input;
+  const prompt = buildScoreProposalPrompt(promptInput);
 
   try {
     const result = await generateText({
       model: aiGateway(PROPOSAL_SCORING_MODEL),
       output: Output.object({ schema: scoreSchema }),
-      system: SCORING_SYSTEM,
+      system: SCORE_PROPOSAL_SYSTEM,
       prompt,
       temperature: 0.2,
     });
@@ -97,7 +73,7 @@ export async function scoreProposal(input: ScoreInput): Promise<void> {
       })
       .eq('id', input.proposalId);
   } catch (err) {
-    console.error('[ai] Proposal scoring failed:', err);
+    log.error('ai.score_proposal.failed', err, { proposal_id: input.proposalId });
     await admin
       .from('proposals')
       .update({

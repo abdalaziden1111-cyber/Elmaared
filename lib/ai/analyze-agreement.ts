@@ -2,6 +2,11 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { aiGateway, PROPOSAL_SCORING_MODEL } from './gateway';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  ANALYZE_AGREEMENT_SYSTEM,
+  buildAnalyzeAgreementPrompt,
+} from './prompts';
+import { log } from '@/lib/utils/logger';
 
 const analysisSchema = z.object({
   agreed: z.array(z.string()).default([]),
@@ -28,15 +33,7 @@ const analysisSchema = z.object({
   recommendation: z.string().min(20).max(800),
 });
 
-const SYSTEM = `أنت مدقّق عقود B2B في السعودية. ستحلّل فهم العميل وفهم المورد لنفس المشروع.
-استخرج:
-- النقاط التي اتفقا عليها
-- النقاط التي يختلفان فيها (مع شدة الخلاف)
-- النقاط الناقصة (لم يذكرها أيٌّ منهما لكن يجب توضيحها)
-- مستوى المخاطرة الإجمالي
-- توصية موضوعية بالعربية للأطراف
-
-أعد JSON يطابق المخطط فقط.`;
+// System prompt and prompt-assembly moved to lib/ai/prompts.ts.
 
 export async function analyzeAgreement(args: {
   agreementId: string;
@@ -57,13 +54,18 @@ export async function analyzeAgreement(args: {
     return;
   }
 
-  const prompt = `العنوان: ${args.rfqTitle}\n\nملخص العرض المقبول:\n${args.proposalSummary}\n\nفهم العميل:\n${args.clientUnderstanding}\n\nفهم المورد:\n${args.supplierUnderstanding}`;
+  const prompt = buildAnalyzeAgreementPrompt({
+    rfqTitle: args.rfqTitle,
+    proposalSummary: args.proposalSummary,
+    clientUnderstanding: args.clientUnderstanding,
+    supplierUnderstanding: args.supplierUnderstanding,
+  });
 
   try {
     const result = await generateText({
       model: aiGateway(PROPOSAL_SCORING_MODEL),
       output: Output.object({ schema: analysisSchema }),
-      system: SYSTEM,
+      system: ANALYZE_AGREEMENT_SYSTEM,
       prompt,
       temperature: 0.2,
     });
@@ -80,7 +82,7 @@ export async function analyzeAgreement(args: {
       })
       .eq('id', args.agreementId);
   } catch (err) {
-    console.error('[ai] Agreement analysis failed:', err);
+    log.error('ai.analyze_agreement.failed', err, { agreement_id: args.agreementId });
     await admin
       .from('agreements')
       .update({
