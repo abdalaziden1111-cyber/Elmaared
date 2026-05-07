@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:no-db": "playwright test --grep-invert @needs-db",
     "db:types": "supabase gen types typescript --local > lib/supabase/types.ts",
     "db:reset": "supabase db reset",
     "db:migrate": "supabase db push"
