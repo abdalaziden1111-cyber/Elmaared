@@ -109,12 +109,27 @@ export async function awardWinnerAction(
     .single();
   const rfqMeta = rfqMetaRaw as { rfq_number: string } | null;
 
+  // Recipient's preferred locale, used to build a correctly-prefixed link.
+  let winnerLocale: string | null = null;
+  if (winnerProfile) {
+    const { data: profRaw } = await admin
+      .from('profiles')
+      .select('preferred_language')
+      .eq('id', winnerProfile.owner_id)
+      .maybeSingle();
+    winnerLocale = (profRaw as { preferred_language: string | null } | null)
+      ?.preferred_language ?? null;
+  }
+
   if (winnerProfile && rfqMeta) {
-    const payload = buildNotification({
-      type: 'proposal_accepted',
-      rfqNumber: rfqMeta.rfq_number,
-      rfqId: proposal.rfq_id,
-    });
+    const payload = buildNotification(
+      {
+        type: 'proposal_accepted',
+        rfqNumber: rfqMeta.rfq_number,
+        rfqId: proposal.rfq_id,
+      },
+      winnerLocale
+    );
     await admin.from('notifications').insert({
       user_id: winnerProfile.owner_id,
       type: 'proposal_accepted',
@@ -278,13 +293,14 @@ export async function signAgreementAction(agreementId: string): Promise<ActionRe
   const admin = createAdminClient();
   const { data: agRowRaw } = await admin
     .from('agreements')
-    .select('id, rfq_id, client_id, supplier_id, client_approved_at, supplier_approved_at')
+    .select('id, rfq_id, proposal_id, client_id, supplier_id, client_approved_at, supplier_approved_at')
     .eq('id', agreementId)
     .single();
   const ag = agRowRaw as
     | {
         id: string;
         rfq_id: string;
+        proposal_id: string;
         client_id: string;
         supplier_id: string;
         client_approved_at: string | null;
@@ -322,10 +338,57 @@ export async function signAgreementAction(agreementId: string): Promise<ActionRe
       .from('agreements')
       .update({ status: 'signed' })
       .eq('id', ag.id);
+    // MVP evidence-only mode: skip the in_escrow holding step.
     await admin
       .from('rfqs')
-      .update({ status: 'in_escrow' })
+      .update({ status: 'in_progress' })
       .eq('id', ag.rfq_id);
+
+    // Defensively create the escrow_transactions row in the action itself,
+    // mirroring the broadened evidence-only trigger. The trigger handles this
+    // if it's been applied to the DB; this fallback insert keeps the flow
+    // working even when only the base migration is present, which is the
+    // case in this cloud environment. Idempotent via the rfq_id uniqueness
+    // check below.
+    const { data: existingEscrowRaw } = await admin
+      .from('escrow_transactions')
+      .select('id')
+      .eq('rfq_id', ag.rfq_id)
+      .maybeSingle();
+    if (!existingEscrowRaw) {
+      const { data: propRaw } = await admin
+        .from('proposals')
+        .select('total_price')
+        .eq('id', ag.proposal_id)
+        .maybeSingle();
+      const prop = propRaw as { total_price: number } | null;
+      if (prop) {
+        const total = Number(prop.total_price);
+        const clientFee = Math.round(total * 0.02 * 100) / 100;
+        const supplierFee = Math.round(total * 0.03 * 100) / 100;
+        const clientFeeVat = Math.round(clientFee * 0.15 * 100) / 100;
+        const supplierFeeVat = Math.round(supplierFee * 0.15 * 100) / 100;
+        const totalAmount = Math.round((total + clientFee + clientFeeVat) * 100) / 100;
+        const initialDeposit = Math.round(totalAmount * 0.5 * 100) / 100;
+        const finalPayment = Math.round((totalAmount - initialDeposit) * 100) / 100;
+        await admin.from('escrow_transactions').insert({
+          agreement_id: ag.id,
+          rfq_id: ag.rfq_id,
+          total_amount: totalAmount,
+          initial_deposit: initialDeposit,
+          final_payment: finalPayment,
+          client_fee: clientFee,
+          supplier_fee: supplierFee,
+          platform_revenue: clientFee + supplierFee,
+          supplier_net: total - supplierFee,
+          vat_rate_applied: 0.15,
+          client_fee_vat: clientFeeVat,
+          supplier_fee_vat: supplierFeeVat,
+          total_vat: clientFeeVat + supplierFeeVat,
+          status: 'awaiting_deposit',
+        });
+      }
+    }
   }
 
   revalidatePath(`/dashboard/rfqs/${ag.rfq_id}/agreement`);
