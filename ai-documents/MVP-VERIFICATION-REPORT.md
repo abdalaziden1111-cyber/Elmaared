@@ -349,19 +349,43 @@ Review step now renders (verified via DOM dump):
 
 All 10 rows now in Arabic with formatted numerals and dates ✓.
 
-#### Deferred / not fixed in 1.5
-- ⚠️ P2 — **File upload step**. Requires:
-  1. New Supabase Storage bucket `rfq-attachments` with RLS (owner-scoped insert/select + supplier-visibility-via-RFQ membership)
-  2. SQL migration
-  3. New server action `uploadRfqAttachmentAction` (mirroring `uploadSupplierDocAction`)
-  4. New wizard step UI between Budget and Review
-  5. Update `createRfqAction` to accept `attachments` URL array and `logoUrl` (already columns on `rfqs`)
-  
-  Will tackle in Phase 3 hardening or when end-to-end RFQ→delivery flow needs real attachments.
-- ⏭️ Single-route wizard vs 4 sub-routes from docs spec — not a bug; UX-equivalent. Will note in final report only.
+#### File upload step (built in second pass)
 
-#### Section 1.5 verdict (post-fix)
-✅ All P1 issues closed. The wizard works end-to-end for all 4 service types with localized review. ⚠️ P2 file upload deferred with clear rationale.
+Per user request, the file upload step was implemented and tested end-to-end. Now a 5-step wizard: الخدمة → التفاصيل → الميزانية → **الملفات** → مراجعة ونشر.
+
+**Pieces shipped:**
+
+1. **Storage bucket** `rfq-attachments` — private, 10 MB cap, MIMEs PDF/JPEG/PNG/WebP. Created in the cloud Supabase via Storage REST API (`scripts/apply-rfq-attachments-migration.mjs`). Bucket verified live (id: `rfq-attachments`, public: false).
+2. **Migration SQL** [supabase/migrations/20260901000001_rfq_attachments_bucket.sql](supabase/migrations/20260901000001_rfq_attachments_bucket.sql) — full RLS policy set (owner insert/update/delete/select, admin select, supplier select via JOIN through `rfqs.attachments` and `rfqs.logo_url`, gated to active RFQ statuses + matching specialization). Committed but not yet applied (Supabase direct-DB endpoint is IPv6-only and this dev environment has no v6; CLI / dashboard required to push). The server action uses service-role and bypasses RLS, so the feature functions end-to-end without RLS applied.
+3. **Helper module** [lib/storage/rfq-attachments.ts](lib/storage/rfq-attachments.ts) — bucket name, kinds, size + MIME constants.
+4. **Server actions** [app/actions/rfq-uploads.ts](app/actions/rfq-uploads.ts):
+   - `uploadRfqAttachmentAction`: validates kind (logo / attachment), file size, MIME; verifies the caller is a client; uploads to `${userId}/${kind}-${timestamp}-${slug(filename)}.${ext}` so the original filename can be reconstructed by the supplier-side display; emits an audit log row.
+   - `deleteRfqAttachmentAction`: lets clients remove a file from the wizard before submitting; enforces that the path is inside the caller's folder.
+5. **Wizard store** [stores/rfq-wizard-store.ts](stores/rfq-wizard-store.ts) — added `logoPath`, `logoFilename`, `attachments[]` plus `setLogo`, `addAttachment`, `removeAttachment`.
+6. **Wizard UI** ([app/[locale]/dashboard/rfqs/new/page.tsx](app/%5Blocale%5D/dashboard/rfqs/new/page.tsx)) — new `FilesStep` with Logo and Attachments sections. Hidden `<input type="file">` triggered by visible upload buttons; on selection the file is uploaded immediately via `useTransition` + `uploadRfqAttachmentAction`; uploaded files render with an `X` button that calls `deleteRfqAttachmentAction`. Spinner shown during pending. Error message rendered inline.
+7. **createRfqAction** ([app/actions/rfq.ts](app/actions/rfq.ts)) — payload now accepts `logoPath` and `attachments[]`. Each path is double-checked against the caller's `${user.id}/` prefix server-side before writing (defense in depth). `rfqs.attachments` is `TEXT[]` (not JSONB), so the action stores **just the path strings**; per-file metadata (filename / size / contentType) is reconstructed from the path slug + storage metadata on read.
+8. **Review step** — also shows the logo filename and attachment count + filenames.
+
+#### End-to-end test (executed live, cloud Supabase)
+
+| Step | Result |
+|---|---|
+| Open `/ar/dashboard/rfqs/new` | 5-step wizard renders (الخدمة · التفاصيل · الميزانية · **الملفات** · مراجعة ونشر) |
+| Drive through steps 1–3 | OK |
+| At Files step, inject PNG via DataTransfer + `change` event | Logo `shahd-logo-v2.png` shown with "تم الرفع" |
+| At Files step, inject PDF via DataTransfer + `change` event | Attachment `design brief.pdf` shown with "15 B" + remove button |
+| Click "التالي" → Review step | Two extra rows render: "الشعار \| shahd-logo-v2.png" + "المرفقات \| 1 ملف · design-brief.pdf" |
+| Click "حفظ كمسودة" | Redirected to `/ar/dashboard/rfqs/5d2f7924-...` (new RFQ id) |
+| **Verify in cloud Supabase**: `SELECT id, rfq_number, logo_url, attachments, status FROM rfqs` | `rfq_number: "RFQ-2026-00003"`, `logo_url: "e8505a1f-.../logo-1778861815245-shahd-logo-v2.png"`, `attachments: ["e8505a1f-.../attachment-1778861817009-design-brief.pdf"]`, `status: "draft"` ✓ Paths are real TEXT[] (not stringified objects). |
+| **Verify in cloud Storage**: list `rfq-attachments/<userId>/` | 2 files present (`logo-1778861815245-shahd-logo-v2.png` and `attachment-1778861817009-design-brief.pdf`) ✓ |
+
+#### One bug caught and fixed during testing
+First attempt stored attachments as **stringified JSON objects** inside `TEXT[]` (e.g. `["{\"path\":\"...\"}"]`). Root cause: I had typed `attachments: RfqAttachmentRef[]` but the column is `TEXT[]` per migration `20260501000003_tables_rfq.sql`. Supabase-js dutifully serialized each object to JSON before inserting. Fixed by mapping the array to paths only (`safeAttachments.map((a) => a.path)`) before insert. Re-tested with the v2 RFQ — paths are clean strings.
+
+Stale first-attempt row + orphan files cleaned up after the fix verified.
+
+#### Section 1.5 verdict (post-fix, post-file-upload)
+✅ All P1 issues closed. Wizard is now a true 5-step flow with **live file uploads to cloud Supabase Storage**, and the resulting RFQ row carries `logo_url` + `attachments[]` correctly. RLS migration committed for future application.
 
 ### Section 1.6 — RFQ list & detail (client)
 _(pending)_

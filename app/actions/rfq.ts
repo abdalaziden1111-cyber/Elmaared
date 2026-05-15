@@ -1,6 +1,5 @@
 'use server';
 
-import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { safeAfter } from '@/lib/utils/safe-after';
@@ -28,6 +27,13 @@ const SERVICE_AR: Record<ServiceType, string> = {
   printing: 'مطبوعات',
 };
 
+interface RfqAttachmentRef {
+  path: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 interface CreateRfqInput {
   serviceType: ServiceType;
   title: string;
@@ -40,6 +46,8 @@ interface CreateRfqInput {
   budgetMax?: number | null;
   proposalsDeadline?: string | null;
   details: Record<string, unknown>;
+  logoPath?: string | null;
+  attachments?: RfqAttachmentRef[];
   publishImmediately?: boolean;
 }
 
@@ -98,6 +106,24 @@ export async function createRfqAction(
 
   const status = input.publishImmediately ? 'open' : 'draft';
 
+  // Validate uploaded paths: every path must live inside the calling user's
+  // folder in the rfq-attachments bucket. This blocks a malicious payload
+  // from claiming a foreign file as an attachment.
+  //
+  // The rfqs.attachments column is TEXT[] (not JSONB), so we store ONLY the
+  // storage paths. Display-side metadata (original filename, size, content
+  // type) is reconstructed from the storage object on read.
+  const userFolderPrefix = `${user.id}/`;
+  const safeLogoPath =
+    input.logoPath && input.logoPath.startsWith(userFolderPrefix)
+      ? input.logoPath
+      : null;
+  const safeAttachmentPaths = (input.attachments ?? [])
+    .filter(
+      (a) => a && typeof a.path === 'string' && a.path.startsWith(userFolderPrefix)
+    )
+    .map((a) => a.path);
+
   const admin = createAdminClient();
   const { data: rfqRaw, error: rfqError } = await admin
     .from('rfqs')
@@ -115,6 +141,8 @@ export async function createRfqAction(
       budget_min: input.budgetMin ?? null,
       budget_max: input.budgetMax ?? null,
       proposals_deadline: input.proposalsDeadline ?? null,
+      logo_url: safeLogoPath,
+      attachments: safeAttachmentPaths,
       status,
     })
     .select('id, rfq_number, exhibition_city, proposals_deadline')
@@ -273,6 +301,3 @@ export async function publishRfqAction(rfqId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function redirectAfterRfqCreate(rfqId: string): Promise<never> {
-  redirect(`/dashboard/rfqs/${rfqId}`);
-}
