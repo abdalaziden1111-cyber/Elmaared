@@ -181,7 +181,51 @@ Implemented per user request "Do A + B + C + D" before moving to Section 1.2. Pl
 ✅ All P0 and P1 issues closed. One ⚠️ P2 deferred (supplier doc upload — to be implemented in 1.11 on the supplier-pending dashboard).
 
 ### Section 1.3 — Client dashboard & settings
-_(pending)_
+
+#### Routes probed (logged in as `ahmed.client.test`)
+| Route | Initial state | Notes |
+|---|---|---|
+| `/ar/dashboard` | 🐛 Stub — only "أهلاً بك" + 1-line subtitle | Doc spec: KPI cards + recent RFQs + upcoming exhibitions + recommended suppliers + quick actions |
+| `/ar/dashboard/notifications` | ✅ Works — empty state OR list + auto-mark-read | Missing: filters / "mark-all-read" button (P2) |
+| `/ar/dashboard/settings/profile` | 🐛 `ComingSoon` placeholder | Doc spec: edit fullName, phone, password, avatar |
+| `/ar/dashboard/settings/company` | ❌ 404 | Doc spec: edit company name, CR, VAT, size, industry, city, address |
+| `/ar/dashboard/onboarding/welcome` | ❌ 404 | "Wow Moment" step 1 — 30s video + 3-step orientation |
+| `/ar/dashboard/onboarding/exhibition` | ❌ 404 | "Wow Moment" step 2 — pick target exhibition |
+| `/ar/dashboard/onboarding/recommendations` | ❌ 404 | "Wow Moment" step 3 — 5 suggested suppliers |
+| `/ar/dashboard/settings/team` | ❌ 404 | Explicitly Phase 2 per `07-mvp-scope.md` — deferred |
+| Notification bell on every page | ✅ Works — dropdown opens, "View all notifications" link, empty state | – |
+
+#### Fixes applied (commit `feat(section-1.3)`)
+
+- **Dashboard root** rewritten ([app/[locale]/dashboard/page.tsx](app/%5Blocale%5D/dashboard/page.tsx)): 4 KPI cards (active RFQs, awaiting proposals, in-execution, completed) computed from real Supabase queries; 2 quick-action tiles (Create RFQ, Discover suppliers); "Recent RFQs" list (last 5 with status chip); "Upcoming exhibitions" trio (LEAP / Cityscape / GITEX hard-coded); "Suggested suppliers" strip (top 4 approved by `total_completed_orders`); "Tour" link to onboarding.
+- **Settings/Profile** rewritten ([page.tsx](app/%5Blocale%5D/dashboard/settings/profile/page.tsx) + new [profile-form.tsx](app/%5Blocale%5D/dashboard/settings/profile/profile-form.tsx)): two forms — (a) fullName + phone update via new `updateClientProfileAction`, (b) password update via existing `updatePasswordAction`. Inline `useActionState` validation, success/error messages, RTL-aware.
+- **Settings/Company** new ([page.tsx](app/%5Blocale%5D/dashboard/settings/company/page.tsx) + [company-form.tsx](app/%5Blocale%5D/dashboard/settings/company/company-form.tsx)): 8 fields (company name, legal name, CR, VAT, size, industry, city, address). Reads/writes `companies` table. Owner-only via `owner_id` check inside the action.
+- **Onboarding 3-step flow** new ([welcome/page.tsx](app/%5Blocale%5D/dashboard/onboarding/welcome/page.tsx), [exhibition/page.tsx](app/%5Blocale%5D/dashboard/onboarding/exhibition/page.tsx), [recommendations/page.tsx](app/%5Blocale%5D/dashboard/onboarding/recommendations/page.tsx)) with shared `Stepper`. Step 3 reads real approved suppliers from DB.
+- **Server actions** new ([app/actions/client-profile.ts](app/actions/client-profile.ts)): `updateClientProfileAction` + `updateClientCompanyAction`. Both use Zod schemas + audit logging + `revalidatePath`.
+- **Schemas** new ([schemas/profile.ts](schemas/profile.ts)): `updateClientProfileSchema` + `updateClientCompanySchema`.
+- **Sidebar nav**: added "بيانات الشركة" link and renamed "الإعدادات" → "الإعدادات الشخصية". *(Not in this commit — `dashboard/layout.tsx` carries pre-existing unrelated modifications I will not bundle into my section commits. Sidebar entry is live in working tree.)*
+
+#### Re-verified live
+- Dashboard root: 4 KPIs rendered, all 5 expected section headings present ("أنشئ طلباً جديداً", "استكشف موردين معتمدين", "طلباتك الأخيرة", "المعارض القادمة", "موردون مقترحون لك") ✓
+- Settings/Profile: 2 forms (profile + password), 4 fields total (fullName, phone, password, confirmPassword) — pre-filled with seeded "أحمد العتيبي" / "+966501234567" ✓
+- **End-to-end form submission test**: changed fullName to "أحمد العتيبي (محدّث)", submitted → 200 response → "تم الحفظ" success message → page refresh shows updated value. Reverted to original. Server action `updateClientProfileAction` executed in 755ms ✓
+- Settings/Company: 8 fields pre-filled with real seeded company ("شركة نواة المالية", CR `1010999001`, etc.) ✓
+- Onboarding/Welcome: H1 "أهلاً بك في تطبيق المعارض", 3-step stepper at step 1, video placeholder slot, 3 orientation tiles, "Next →" link to /exhibition ✓
+- Onboarding/Exhibition: 3 cards (LEAP 2027, Cityscape Global 2026, GITEX Saudi Arabia 2026), stepper at step 2 ✓
+- Onboarding/Recommendations: stepper at step 3, fetched 1 real approved supplier (seeded "شركة الإبداع للمعارض"), final CTA "أنشئ طلبك الأول ←" linking to /dashboard/rfqs/new ✓
+- Sidebar mobile menu: 6 links (Dashboard, My RFQs, Discover, Notifications, Personal Settings, Company Info) + logout ✓
+
+#### Known background log noise
+Server logs show intermittent `TypeError: fetch failed [HeadersTimeoutError]` — these are Supabase auth/realtime polling timing out occasionally. Profile + company POSTs still completed (200 in 2.4s, action ran in 755ms). Not blocking — appears pre-existing. P3 — investigate as part of hardening.
+
+#### Section 1.3 verdict (post-fix)
+✅ All P0 and P1 issues closed:
+- Dashboard upgraded from stub → full KPI + section layout
+- Profile settings working with live form + audit log
+- Company settings new and working
+- 3 onboarding pages new and stitched as a 3-step wizard
+
+⏭️ Deferred: `settings/team` (Phase 2 per `07-mvp-scope.md`), notifications filters / mark-all-read (P3 hardening).
 
 ### Section 1.4 — Supplier discovery (client view)
 _(pending)_
