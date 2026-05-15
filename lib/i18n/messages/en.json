@@ -31,7 +31,302 @@
     "client": "Company (Client)",
     "supplier": "Supplier",
     "clientDescription": "I need suppliers for my exhibitions and events",
-    "supplierDescription": "I provide services for exhibitions and events"
+    "supplierDescription": "I provide services for exhibitions and events",
+    "verifyEmail": {
+      "title": "Check your email",
+      "body": "We've sent you a verification link. Open it to activate your account. If you don't receive it within two minutes, check your spam folder.",
+      "backToLogin": "Back to login"
+    }
+  },
+  "home": {
+    "title": "App Exhibition",
+    "tagline": "B2B platform for exhibition suppliers in Saudi Arabia",
+    "loginCta": "Log in",
+    "signupCta": "Sign up",
+    "heroLead": "Create one RFQ, receive offers from verified suppliers, compare with AI assistance, and keep your money in escrow until delivery.",
+    "ctaPrimary": "Get started — free",
+    "ctaSecondary": "See how it works",
+    "icpTabs": {
+      "clientsTitle": "For Clients",
+      "clientsBody": "Save weeks of supplier hunting. Post once, get comparable offers with AI assistance.",
+      "clientsCta": "Post a free RFQ",
+      "suppliersTitle": "For Suppliers",
+      "suppliersBody": "RFQs matching your specializations and cities, delivered by email + notifications. 3% commission only.",
+      "suppliersCta": "Sign up as supplier",
+      "organizersTitle": "For Organizers",
+      "organizersBody": "Showcase your exhibition to thousands of companies sourcing suppliers before the event.",
+      "organizersCta": "Contact us"
+    },
+    "valueProps": {
+      "title": "Everything you need on one platform",
+      "items": {
+        "verifiedTitle": "Verified suppliers only",
+        "verifiedBody": "Every supplier passes a review (commercial registration, VAT, track record) before going live.",
+        "aiTitle": "AI scoring per offer",
+        "aiBody": "We score every offer on 5 axes and summarize strengths and risks in Arabic.",
+        "escrowTitle": "Full cash escrow",
+        "escrowBody": "50% on kickoff + 50% after delivery. Your money sits with the platform until you accept.",
+        "panicTitle": "Panic button",
+        "panicBody": "If a supplier stalls or a dispute opens, hit escalate and the ops team responds within 30 minutes.",
+        "feesTitle": "Transparent fees",
+        "feesBody": "5% total (2% from you + 3% from supplier). No subscription, no hidden fees.",
+        "speedTitle": "Speed of execution",
+        "speedBody": "Average offer turnaround: 24 hours. Average kickoff: 5 days."
+      }
+    },
+    "featuredSuppliers": {
+      "title": "Verified suppliers serving you now",
+      "subtitle": "A sample from hundreds of suppliers across 13 Saudi cities.",
+      "ctaAll": "Browse all suppliers"
+    },
+    "testimonials": {
+      "title": "What our customers say",
+      "t1Name": "Khalid Al-Otaibi",
+      "t1Role": "Marketing Director, Fintech Co.",
+      "t1Body": "We used to lose two weeks picking a booth supplier. With the app, 5 offers arrived in one day and the AI comparison summarized the differences.",
+      "t2Name": "Noura Al-Shehri",
+      "t2Role": "Events Manager, Retail Group",
+      "t2Body": "The cash escrow gave me peace of mind. We wired only 50%, the rest after we accepted delivery. Full transparency.",
+      "t3Name": "Majid Al-Qahtani",
+      "t3Role": "GM, HR Solutions",
+      "t3Body": "The escalation button saved us. There was a dispute over design details, and the ops team resolved it within hours."
+    },
+    "ctaSection": {
+      "title": "Ready for your next exhibition?",
+      "body": "Account creation is free. Your first RFQ is free. You only pay when a project succeeds.",
+      "primary": "Create account",
+      "secondary": "Contact us"
+    },
+    "nav": {
+      "forClients": "For Clients",
+      "forSuppliers": "For Suppliers",
+      "howItWorks": "How It Works",
+      "pricing": "Pricing"
+    }
+  },
+  "siteHeader": {
+    "logoAlt": "App Exhibition",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "switchLocale": "العربية"
+  },
+  "siteFooter": {
+    "tagline": "B2B platform for exhibition suppliers in Saudi Arabia. Connecting buyers with the right suppliers, on time, safely.",
+    "productTitle": "Product",
+    "companyTitle": "Company",
+    "legalTitle": "Legal",
+    "contactTitle": "Contact",
+    "links": {
+      "forClients": "For Clients",
+      "forSuppliers": "For Suppliers",
+      "howItWorks": "How it works",
+      "pricing": "Pricing",
+      "suppliers": "Browse suppliers",
+      "exhibitions": "Exhibitions",
+      "blog": "Blog",
+      "about": "About us",
+      "contact": "Contact",
+      "terms": "Terms",
+      "privacy": "Privacy"
+    },
+    "copyright": "© 2026 App Exhibition. All rights reserved."
+  },
+  "marketing": {
+    "forClients": {
+      "title": "One platform for every exhibition need",
+      "subtitle": "Create one RFQ, receive offers from verified suppliers, compare with AI assistance, and keep your money in escrow until delivery.",
+      "tabs": {
+        "painTitle": "The usual pain",
+        "solutionTitle": "How we solve it",
+        "resultTitle": "The result"
+      },
+      "scenarios": {
+        "boothTitle": "Booth design & build",
+        "boothPain": "Weeks chasing 3 quotes from scattered suppliers, prices all over the place, limited quality confidence.",
+        "boothSolution": "Post once, receive 5+ offers within 24 hours. AI compares and summarizes. Cash escrow.",
+        "boothResult": "Cut selection time by 60% + 15% average cost saving through transparent negotiation.",
+        "giftsTitle": "Promotional gifts",
+        "giftsPain": "Slow responses, low-quality samples, invoices without any guarantee.",
+        "giftsSolution": "Verified suppliers with track record, documented samples, escrow-protected payment.",
+        "giftsResult": "On-time delivery 96% + refund guarantee if delivery fails.",
+        "eventTitle": "Event management",
+        "eventPain": "Too many vendors (catering, sound, lighting) hard to coordinate between them.",
+        "eventSolution": "Full-service suppliers handling all event components under one contract + unified timeline.",
+        "eventResult": "From 8 separate conversations down to one organized chat."
+      },
+      "features": {
+        "feeTitle": "5% commission only",
+        "feeBody": "2% from you, 3% from the supplier. No subscriptions, no hidden fees.",
+        "escrowTitle": "Full escrow protection",
+        "escrowBody": "Your money sits in escrow until you accept the delivery.",
+        "verifiedTitle": "Verified suppliers",
+        "verifiedBody": "Every supplier is reviewed before going live. Commercial registration + ratings.",
+        "aiTitle": "AI evaluation per offer",
+        "aiBody": "Strengths and risks summarized in under a minute."
+      },
+      "cta": "Get started — free"
+    },
+    "forSuppliers": {
+      "title": "Reach companies looking for exactly what you offer",
+      "subtitle": "RFQs that match your specializations and cities, delivered by email and notifications. 3% commission, no subscription.",
+      "features": {
+        "matchTitle": "Only relevant RFQs",
+        "matchBody": "We match by specialization and city. No wasted time.",
+        "guaranteedTitle": "Guaranteed payment",
+        "guaranteedBody": "Client pays into escrow upfront. No collection anxiety.",
+        "feeTitle": "Just 3%",
+        "feeBody": "Deducted from the project value. No subscription, no hidden fees.",
+        "portfolioTitle": "Free public profile",
+        "portfolioBody": "Your portfolio is showcased on the Discover page for everyone.",
+        "aiAssistTitle": "AI strengthens your offer",
+        "aiAssistBody": "We automatically summarize your strengths so the client gets it fast.",
+        "fairTitle": "Fair evaluation",
+        "fairBody": "AI scores on 5 objective axes — company size or brand doesn't bias the result.",
+        "supportTitle": "Direct support",
+        "supportBody": "Our team is available during business hours for any question.",
+        "growthTitle": "Sustainable growth",
+        "growthBody": "Client reviews build your reputation. Each successful project opens more doors."
+      },
+      "testimonialsTitle": "Suppliers who trust us",
+      "t1Name": "Al-Ibdaa Exhibitions",
+      "t1Body": "Within 60 days we received 12 matching RFQs. Closed 4 contracts. The cash escrow is something we trust completely.",
+      "t2Name": "Promo Gifts Pro",
+      "t2Body": "We used to waste time on RFQs that didn't fit. Now we only see RFQs in our cities and within our specializations.",
+      "t3Name": "Al-Ofoq Events",
+      "t3Body": "The 3% is way less than traditional marketing costs. And payment is guaranteed. We expanded to two new cities.",
+      "cta": "Sign up as supplier"
+    },
+    "howItWorks": {
+      "title": "How App Exhibition works",
+      "videoCaption": "See how the platform works in 90 seconds",
+      "videoPlaceholder": "Intro video coming soon",
+      "step1Title": "Sign up and describe what you need",
+      "step1Body": "Two minutes to register and write your RFQ. Pick the service, city, and budget.",
+      "step2Title": "Receive supplier offers",
+      "step2Body": "Matching suppliers get notified and submit offers with their prices and terms.",
+      "step3Title": "Compare with AI assistance",
+      "step3Body": "We score each offer on 5 axes: price, delivery, completeness, professionalism, track record.",
+      "step4Title": "Negotiate in a secure chat",
+      "step4Body": "Chats happen inside the platform. An Admin-escalation button is always one click away.",
+      "step5Title": "Sign the agreement",
+      "step5Body": "Each side writes their own understanding. AI reconciles the differences. Both parties sign digitally.",
+      "step6Title": "Deposit to escrow",
+      "step6Body": "Wire 50% to escrow. Admin confirms. Final release happens after delivery and acceptance.",
+      "step7Title": "Receive and review",
+      "step7Body": "After delivery you accept the work, the remaining 50% is released to the supplier, and you leave a review that helps future clients."
+    },
+    "pricing": {
+      "title": "Simple, transparent pricing",
+      "subtitle": "No subscriptions. One commission, only on projects that successfully complete on the platform.",
+      "clientTitle": "For clients",
+      "clientRate": "2%",
+      "clientBody": "Of the project value, added at the initial deposit.",
+      "supplierTitle": "For suppliers",
+      "supplierRate": "3%",
+      "supplierBody": "Of the project value, deducted from the final payment.",
+      "footnoteIntro": "Platform commission total",
+      "footnotePercent": "5%",
+      "footnoteOutro": ". VAT of 15% applies to the commission only (not to the project value itself)."
+    },
+    "about": {
+      "title": "About us",
+      "subtitle": "Building the bridge between companies and suppliers in the Saudi exhibition market.",
+      "missionTitle": "Our mission",
+      "missionBody": "Cut supplier discovery from weeks to hours, and protect both sides with cash escrow and transparent governance. Our goal: every exhibition delivers its commercial outcome without worrying about collection or quality.",
+      "visionTitle": "Our vision",
+      "visionBody": "To be the trusted infrastructure for every exhibition and event service across the Gulf, starting from Saudi Arabia.",
+      "valuesTitle": "Our values",
+      "value1Title": "Transparency",
+      "value1Body": "Every fee, every rating, every decision — documented and visible to both sides.",
+      "value2Title": "Fairness",
+      "value2Body": "We evaluate suppliers on objective metrics. Company size or brand doesn't affect the result.",
+      "value3Title": "Safety",
+      "value3Body": "Cash escrow, governance, ops team — nobody loses money on our platform.",
+      "value4Title": "Speed",
+      "value4Body": "We respect our customers' time. RFQs within 24 hours. Responses within 2 hours.",
+      "teamTitle": "Founding team",
+      "team1Name": "[Founder 1]",
+      "team1Role": "Founder & CEO",
+      "team1Bio": "12+ years in the Saudi exhibition industry. Previously worked with top exhibition organizers.",
+      "team2Name": "[Founder 2]",
+      "team2Role": "Founder & CTO",
+      "team2Bio": "10+ years building B2B platforms. Former software engineer at a global tech company.",
+      "team3Name": "[Founder 3]",
+      "team3Role": "Head of Operations",
+      "team3Bio": "8+ years in project and operations management. Background in supply-chain execution."
+    },
+    "contact": {
+      "title": "Contact us",
+      "subtitle": "Questions, partnerships, or support — we reply during business hours.",
+      "emailTitle": "Email",
+      "emailAddress": "info@elma3ared.com",
+      "hoursTitle": "Business hours",
+      "hoursBody": "Sunday – Thursday · 9 AM – 6 PM (Riyadh time)",
+      "formTitle": "Send a message",
+      "formName": "Name",
+      "formEmail": "Email",
+      "formSubject": "Subject",
+      "formMessage": "Your message",
+      "formSubmit": "Send",
+      "formNotice": "Demo contact form — messages are not stored yet. For urgent matters, use the email above."
+    },
+    "suppliersDirectory": {
+      "title": "Browse verified suppliers",
+      "subtitle": "Public preview — to request a quote, create a client account.",
+      "filterCity": "All cities",
+      "filterService": "All services",
+      "cardOrders": "{count} projects delivered",
+      "cardYears": "{years} years experience",
+      "loginPrompt": "To contact this supplier and request a quote, create a client account.",
+      "ctaSignup": "Create client account",
+      "emptyTitle": "No results",
+      "emptyBody": "Try relaxing the filters."
+    },
+    "exhibitions": {
+      "title": "Upcoming exhibitions",
+      "subtitle": "Notable exhibitions across Saudi Arabia and the region. Start preparing your next exhibition early.",
+      "ctaPlan": "Request a quote for this exhibition",
+      "comingSoon": "Full interactive calendar coming soon."
+    },
+    "blog": {
+      "title": "Blog",
+      "subtitle": "Guides, articles, and case studies for exhibition organizers and suppliers.",
+      "readMore": "Read article",
+      "minutes": "{n} min read",
+      "backToBlog": "← Back to blog"
+    },
+    "legal": {
+      "termsTitle": "Terms of service",
+      "termsLead": "This is a placeholder. Replaced with final legal text reviewed by counsel before commercial launch.",
+      "privacyTitle": "Privacy policy",
+      "privacyLead": "This is a placeholder. Replaced with final legal text reviewed by counsel before commercial launch.",
+      "lastUpdated": "Last updated: 2026-05",
+      "section1Title": "1. Acceptance",
+      "section1Body": "By using the platform, you agree to these terms.",
+      "section2Title": "2. Accounts",
+      "section2Body": "Every user is responsible for providing accurate information and keeping their credentials confidential.",
+      "section3Title": "3. Fees",
+      "section3Body": "A 5% commission (2% from the client + 3% from the supplier) applies to each project successfully completed on the platform.",
+      "section4Title": "4. Cash escrow",
+      "section4Body": "Funds are paid into the platform's escrow account. Releases follow the rules of the signed agreement.",
+      "section5Title": "5. Disputes",
+      "section5Body": "In case of dispute, the platform's operations team mediates as a neutral party. Final decisions are subject to the laws of the Kingdom of Saudi Arabia.",
+      "section6Title": "6. Contact",
+      "section6Body": "For inquiries: info@elma3ared.com",
+      "privacy1Title": "1. What we collect",
+      "privacy1Body": "Email, name, phone number, company name, commercial registration, VAT, and supplier verification documents.",
+      "privacy2Title": "2. How we use it",
+      "privacy2Body": "To deliver platform services, match clients with suppliers, operational communication, and regulatory compliance.",
+      "privacy3Title": "3. Sharing with third parties",
+      "privacy3Body": "We do not share your data except with infrastructure providers (Supabase, Resend) for specific operational purposes.",
+      "privacy4Title": "4. Your rights",
+      "privacy4Body": "You may access your data, modify it, or delete your account at any time."
+    }
+  },
+  "notFound": {
+    "title": "404",
+    "body": "Page not found. It may have been moved or deleted.",
+    "backHome": "Back to home"
   },
   "nav": {
     "home": "Home",
