@@ -134,7 +134,51 @@ Implemented per user request "Do A + B + C + D" before moving to Section 1.2. Pl
 - 90s intro video — placeholder slot in `how-it-works`
 
 ### Section 1.2 — Authentication
-_(pending)_
+
+#### Routes probed
+| Route | HTTP | Notes |
+|---|---|---|
+| `/ar/signup` | 200 | Role-choice page (client / supplier cards) |
+| `/ar/login` | 200 | Email + password form |
+| `/ar/signup/client/account` | 200 | Step 1/2 (fullName, email, phone, password) |
+| `/ar/signup/client/company` | 200 | Step 2/2 (companyName, legalName, crNumber, vatNumber, size, industry, city) |
+| `/ar/signup/supplier/account` | 200 | Step 1/4 |
+| `/ar/signup/supplier/company` | 200 | Step 2/4 (companyName, legalName, crNumber, vatNumber, bio, website) |
+| `/ar/signup/supplier/specializations` | 200 | Step 3/4 (services × 4 + cities × 10) |
+| `/ar/signup/supplier/documents` | 200 | Step 4/4 (label says "البنك" — bank info: bankName, iban, accountHolderName) |
+| `/ar/forgot-password` | 200 | Email-only form |
+| `/ar/reset-password` | 200 | Two password fields |
+| `/ar/auth/verify-email` | 200 | Static info page after signup |
+
+#### Initial findings (issues collected)
+
+| # | Sev | Issue | Root cause |
+|---|---|---|---|
+| 1 | 🐛 P0 | Admin completely inaccessible. Login as admin redirected to `/ar/admin` which fell through to the locale catch-all 404 (Section 1.1's fix). Direct visit to `/admin` returned **HTTP 500** — `MobileMenu` calls `usePathname` from `@/lib/i18n/routing` (next-intl) but admin layout has no `NextIntlClientProvider`. | (a) [app/actions/auth.ts:67](app/actions/auth.ts) hard-prepended `/${locale}` to every dashboard path including admin's. (b) [app/admin/layout.tsx](app/admin/layout.tsx) had no `<html>`/`<body>` and no intl provider — children that consumed next-intl crashed. |
+| 2 | ⚠️ P1 | Auth pages (login, signup wizards, forgot/reset password, verify-email) had no header / footer / logo / locale toggle / link back to home. A user landing on `/ar/login` had no way back to marketing. | The `(auth)` route group had no `layout.tsx`. |
+| 3 | ⚠️ P2 | Supplier signup step 4 is at the route `/signup/supplier/documents/` but the page asks for **bank info** (bankName, iban, accountHolderName), not documents. Stepper label correctly reads "البنك" so users are not confused, but per [04-screens-inventory.md](ai-documents/04-screens-inventory.md) §D the spec is `account → company → specializations → documents (CR + VAT + portfolio + samples)`. | Route name is misleading; doc-upload step is missing entirely. |
+| 4 | ✅ | Login wrong-password shows inline Arabic error "بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور." | – |
+| 5 | ✅ | Logout works for client + supplier + admin (after fix 1, admin's logout button reachable via mobile menu / desktop sidebar). | – |
+| 6 | ✅ | Role-based redirects: client → `/ar/dashboard`, supplier (approved) → `/ar/supplier/rfqs`, admin → `/admin`. | – |
+| 7 | ✅ | WizardStepper component already integrated in every wizard step (4 pills with check/current/future states + connecting lines). | – |
+| 8 | ⏭️ | `/ar/auth/verify-email` is a static info page; the actual `/api/auth/callback` exchange triggers when the Supabase magic link is clicked. Not driven end-to-end (no real inbox in test environment). | – |
+
+#### Fixes applied (commit `feat(section-1.2)`)
+- **Fix 1 — admin login redirect** ([app/actions/auth.ts](app/actions/auth.ts)): branch on `profile.role === 'admin'` and redirect without locale prefix.
+- **Fix 2 — admin layout repair** ([app/admin/layout.tsx](app/admin/layout.tsx)): added top-level `<html lang="ar" dir="rtl">` + `<body>` (the parent root layout is a passthrough), wrapped the tree in `NextIntlClientProvider locale="ar" messages={…}`, swapped `Link` from next-intl to plain `next/link` (admin URLs are locale-free), imported global styles + fonts.
+- **Fix 3 — auth chrome** ([app/[locale]/(auth)/layout.tsx](app/%5Blocale%5D/%28auth%29/layout.tsx)): minimal sticky header with the same logo as marketing pages + `LocaleToggle`. Auth pages now have a way back to home and locale toggle parity with marketing.
+- **Fix 4 — supplier docs upload** is **deferred to Section 1.11** since the actual upload UX belongs on the supplier-pending dashboard (post-signup state). Documented as ⚠️ P2 here, will be closed in 1.11.
+
+#### Re-verified live (post-fix)
+- Admin login → `/admin` ✓ (no longer `/ar/admin`).
+- `/admin` renders the dashboard ("نظرة عامة" header) ✓ (no 500).
+- Mobile-menu opens with all 7 admin nav links + logout button ✓.
+- `/ar/login` shows the new auth chrome (logo + English locale toggle) ✓.
+- `/ar/signup/supplier/specializations` shows wizard chrome + 4-step stepper (الحساب ✓ · الشركة ✓ · التخصصات ← current · البنك) ✓.
+- `/ar/signup/client/account` heading "أنشئ حسابك" + 4 fields, stepper step 1/2 ✓.
+
+#### Section verdict (post-fix)
+✅ All P0 and P1 issues closed. One ⚠️ P2 deferred (supplier doc upload — to be implemented in 1.11 on the supplier-pending dashboard).
 
 ### Section 1.3 — Client dashboard & settings
 _(pending)_

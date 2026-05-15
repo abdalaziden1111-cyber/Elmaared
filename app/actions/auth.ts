@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { getLocale } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -62,7 +63,14 @@ export async function loginAction(
   const profile = profileRaw as { role: UserRole } | null;
   if (!profile) return { ok: false, error: 'لم نجد ملفك الشخصي. تواصل مع Admin.' };
 
-  redirect(getDashboardPath(profile.role));
+  // Admin routes live at /admin without a locale prefix (per proxy.ts).
+  // All other roles route under /[locale]/...
+  const dashPath = getDashboardPath(profile.role);
+  if (profile.role === 'admin') {
+    redirect(dashPath);
+  }
+  const locale = await getLocale();
+  redirect(`/${locale}${dashPath}`);
 }
 
 // ───────────────────────────────────────────────────────────
@@ -166,7 +174,8 @@ export async function signupClientAction(
     metadata: { company_id: company.id },
   });
 
-  return { ok: true, data: { redirectTo: '/auth/verify-email' } };
+  const locale = await getLocale();
+  return { ok: true, data: { redirectTo: `/${locale}/auth/verify-email` } };
 }
 
 // ───────────────────────────────────────────────────────────
@@ -288,7 +297,8 @@ export async function signupSupplierAction(
     },
   });
 
-  return { ok: true, data: { redirectTo: '/auth/verify-email' } };
+  const locale = await getLocale();
+  return { ok: true, data: { redirectTo: `/${locale}/auth/verify-email` } };
 }
 
 // ───────────────────────────────────────────────────────────
@@ -298,7 +308,8 @@ export async function logoutAction(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath('/', 'layout');
-  redirect('/login');
+  const locale = await getLocale();
+  redirect(`/${locale}/login`);
 }
 
 // ───────────────────────────────────────────────────────────
@@ -350,5 +361,6 @@ export async function updatePasswordAction(
 
   if (error) return { ok: false, error: 'فشل في تحديث كلمة المرور. حاول مرة أخرى.' };
 
-  return { ok: true, data: { redirectTo: '/login' } };
+  const locale = await getLocale();
+  return { ok: true, data: { redirectTo: `/${locale}/login` } };
 }
