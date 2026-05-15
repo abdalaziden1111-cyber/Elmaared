@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { ChatWindow, type ChatMessage } from '@/components/chat/chat-window';
 
 export default async function SupplierChatPage({
@@ -10,19 +10,43 @@ export default async function SupplierChatPage({
 }) {
   const { id: chatId } = await params;
   const { user } = await requireRole(['supplier']);
-  const supabase = await createClient();
 
-  const { data: chatRowRaw } = await supabase
+  // Workaround for the recursive RLS pair (rfqs ↔ proposals): the embedded
+  // `rfq:rfqs(...)` select triggers the cycle. Read via admin and verify
+  // ownership manually.
+  const admin = createAdminClient();
+
+  const { data: chatRowRaw } = await admin
     .from('chats')
-    .select('id, rfq:rfqs(rfq_number, title)')
+    .select('id, supplier_id, panic_at, rfq_id')
     .eq('id', chatId)
     .single();
-  const chat = chatRowRaw as
-    | { id: string; rfq: { rfq_number: string; title: string } | null }
+  const chatRow = chatRowRaw as
+    | { id: string; supplier_id: string; panic_at: string | null; rfq_id: string }
     | null;
-  if (!chat) notFound();
+  if (!chatRow) notFound();
 
-  const { data: messagesRaw } = await supabase
+  // Confirm the requester owns the supplier this chat belongs to
+  const { data: supRaw } = await admin
+    .from('suppliers')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single();
+  const supplierRow = supRaw as { id: string } | null;
+  if (!supplierRow || supplierRow.id !== chatRow.supplier_id) notFound();
+
+  const { data: rfqRaw } = await admin
+    .from('rfqs')
+    .select('rfq_number, title')
+    .eq('id', chatRow.rfq_id)
+    .single();
+  const chat = {
+    id: chatRow.id,
+    panic_at: chatRow.panic_at,
+    rfq: rfqRaw as { rfq_number: string; title: string } | null,
+  };
+
+  const { data: messagesRaw } = await admin
     .from('messages')
     .select(
       'id, chat_id, sender_id, sender_role, content, is_admin_intervention, is_panic_alert, panic_reason, created_at'
@@ -45,6 +69,7 @@ export default async function SupplierChatPage({
           currentUserId={user.id}
           currentRole="supplier"
           initialMessages={messages}
+          alreadyEscalated={chat.panic_at != null}
         />
       </div>
     </div>

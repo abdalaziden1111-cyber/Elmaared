@@ -245,6 +245,26 @@ export async function signupSupplierAction(
     if (authError?.message?.includes('already registered')) {
       return { ok: false, error: 'هذا البريد مسجّل بالفعل.' };
     }
+    if (
+      authError?.message?.toLowerCase().includes('email') &&
+      authError?.message?.toLowerCase().includes('invalid')
+    ) {
+      return {
+        ok: false,
+        error:
+          'البريد الإلكتروني مرفوض من المزوّد. جرّب نطاقاً معروفاً (gmail.com، outlook.com).',
+      };
+    }
+    if (
+      authError?.code === 'over_email_send_rate_limit' ||
+      authError?.message?.includes('rate limit')
+    ) {
+      return {
+        ok: false,
+        error:
+          'تم تجاوز الحد المسموح من محاولات التسجيل من هذا الجهاز. حاول بعد ساعة.',
+      };
+    }
     return { ok: false, error: 'حدث خطأ في إنشاء الحساب.' };
   }
 

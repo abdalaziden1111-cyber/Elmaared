@@ -703,13 +703,70 @@ Submitted via the form (default favor=client + default resumeStatus=completed):
 - **HMR-stale handlers** affected three click points this session (escrow approve, dispute toggle, dispute resolve form). Mitigation = restart Preview. Already P3.
 - **Admin auth-cookie persistence** still needs occasional cookie clear + re-login. Already P3.
 - **`openDisputeAction` doesn't capture evidence URLs from the UI form** — schema has `evidence_urls TEXT[]` but `<OpenDisputeForm>` only collects category + description. P3 enhancement, not a blocker.
-- **No "raise dispute" CTA from the supplier side** — current UX assumes only the client opens disputes. Per docs, this is acceptable for MVP (all disputes flow client→admin in evidence-only escrow mode).
+- **Suppliers CAN raise disputes** (correction to an earlier-session note). [supplier/rfqs/[id]/page.tsx](app-exhibition-mvp/app/[locale]/supplier/rfqs/[id]/page.tsx) renders `<OpenDisputeForm raiserRole="supplier" />` once the project is in {in_escrow, in_progress, delivered, completed} (`DISPUTABLE_STATUSES`). Confirmed during Section 1.11.
 
 #### Section 1.10 verdict
 ✅ Reviews + disputes flow fully working end-to-end. Client can submit a 6-star review on a completed RFQ; client can open a dispute (server action + DB validated); admin sees the dispute in the queue, opens it, resolves it; RFQ status correctly restores. Two server-side flakes (HMR handlers + auth cookies) are environment quirks, not feature bugs.
 
 ### Section 1.11 — Supplier flow
-_(pending)_
+
+#### Routes / actions exercised
+
+| # | Surface | Persona | Verdict |
+|---|---|---|---|
+| C | `/ar/login` → `/ar/supplier` → redirect to `/supplier/rfqs` | approved supplier (`m.supplier.test`) | ✅ |
+| D | `/ar/supplier/rfqs` matched-RFQ list + `/ar/supplier/rfqs/[id]` detail | supplier | ✅ (after RLS workaround) |
+| E | `submitProposalAction` via `/ar/supplier/rfqs/[id]/proposal` form | supplier | ✅ |
+| F | `/ar/supplier/proposals` tabs (status filters) | supplier | ✅ (after RLS workaround) |
+| G | `/ar/supplier/chats/[id]` — full chat history | supplier | ✅ (after RLS workaround) |
+| H | `/ar/supplier/projects` (winning RFQs list) | supplier | ✅ (after RLS workaround) |
+| I | `/ar/supplier/earnings` — released + pending KPIs + payout history | supplier | ✅ (after RLS workaround) |
+| J | `/ar/supplier/profile/portfolio` + `/edit` (28 fields, 2 forms) | supplier | ✅ |
+| B | New-supplier signup wizard (4 steps) → `/ar/supplier/pending` | brand-new supplier (`sami.newsupplier+test1111@outlook.com`) | ✅ (signup UI verified end-to-end; final `auth.signUp` rate-limited → mirrored via admin to seed Section 2.2 test subject) |
+
+#### What was added in this section
+
+The recursive RLS pair (`rfqs ↔ proposals` via `selected_supplier_view_rfq`) — same class of bug already fixed for client/admin in Sections 1.6/1.9 — was hitting **every** supplier-side data page. RLS recursion (`42P17 infinite recursion detected in policy for relation "rfqs"`) caused the supplier RFQ list, detail page, proposals list, chat detail, projects list, and earnings page to either render empty or 404. Confirmed by signing in via the anon JWT and querying directly:
+
+```
+{ code: '42P17', message: 'infinite recursion detected in policy for relation "rfqs"' }
+```
+
+Applied the established admin-client + manual-ownership workaround to all five supplier pages:
+
+| File | Workaround |
+|---|---|
+| [supplier/rfqs/page.tsx](app-exhibition-mvp/app/[locale]/supplier/rfqs/page.tsx) | Filter `rfqs.status='open' AND service_type IN supplier.specializations` (replicates the RLS rule in app code). |
+| [supplier/rfqs/[id]/page.tsx](app-exhibition-mvp/app/[locale]/supplier/rfqs/[id]/page.tsx) | Manual visibility check: open+matching, OR winning supplier, OR has-own-proposal. |
+| [supplier/proposals/page.tsx](app-exhibition-mvp/app/[locale]/supplier/proposals/page.tsx) | Gate on `supplier.id` from `owner_id = auth.uid()`. |
+| [supplier/chats/[id]/page.tsx](app-exhibition-mvp/app/[locale]/supplier/chats/[id]/page.tsx) | Verify `chat.supplier_id == supplier.id`; fetch RFQ separately (no embedded join). |
+| [supplier/projects/page.tsx](app-exhibition-mvp/app/[locale]/supplier/projects/page.tsx) | Filter accepted proposals by `supplier_id`, then RFQs by `winning_proposal_id IN`. |
+| [supplier/earnings/page.tsx](app-exhibition-mvp/app/[locale]/supplier/earnings/page.tsx) | Same shape as proposals; agreements + escrow_transactions filtered by supplier. |
+
+#### UX bug fixed mid-section
+
+The supplier RFQ detail page kept showing the "قدّم عرضك ←" CTA even after the supplier had already submitted a proposal (logic was `rfq.status === 'open' && !isWinningSupplier`). Tightened to `&& !hasOwnProposal` and added a confirmation panel: `✓ قدّمت عرضاً على هذا الطلب — تابع حالته من صفحة عروضي`.
+
+#### Other improvements
+
+- `signupSupplierAction` now surfaces three specific errors instead of the generic "حدث خطأ في إنشاء الحساب": email-domain rejected, email-rate-limit exceeded, already registered. Surfaced after debugging (Supabase rejects `@example.com` as invalid; sandbox throttles signups to ~4/hr per IP).
+
+#### End-to-end test data created
+
+| Resource | ID | State |
+|---|---|---|
+| RFQ-2026-00004 (booth/Riyadh, 40k–80k) | `28aa561e-a9af-…` | `open` (created via client UI) |
+| Proposal from m.supplier.test | `430991d4-9fd8-…` | `submitted`, total 68,000 ﷼, 28 days |
+| Pending supplier "شركة سامي للمعارض" | sup `cae21abd-…`, owner `cc0c9e06-…` | `pending_review` (Section 2.2 test subject) |
+
+#### Notes
+- **Supplier dashboard KPIs** (per the doc spec) are not implemented as a distinct page: `/supplier` redirects approved suppliers straight to `/supplier/rfqs` and pending ones to `/supplier/pending`. The matched-RFQ list functions as the de-facto home and the 5-link sidebar (الطلبات / عروضي / مشاريعي / أرباحي / ملفي) is the navigation. Acceptable for MVP; building a separate KPI dashboard would duplicate `/earnings` + `/proposals`.
+- **Email rate limit** on Supabase free-tier project blocks repeated signups from the same IP. The signup wizard UI was verified (4-step flow, store-backed state, hidden inputs marshal to the action correctly) — only the final `supabase.auth.signUp()` call hits the cap. Mirrored via admin client (same pattern as the seed scripts) so Section 2.2 has its test subject.
+- **Documents step** (CR / VAT / portfolio uploads) lives on `/supplier/profile/edit`, not in the signup wizard. The wizard's 4 steps are: account → company → specializations → bank. Doc inventory was wrong; impl is consistent.
+- **City labels mismatch** between docs and impl: the seed suppliers used Arabic city labels in `suppliers.cities` (e.g. `الرياض`, `جدة`); the wizard uses English canonical values (`Riyadh`, `Jeddah`). No code joins `rfq.exhibition_city` against `supplier.cities` so the mismatch is cosmetic, not functional. Worth a follow-up to normalize.
+
+#### Section 1.11 verdict
+✅ Supplier flow fully working end-to-end. New RFQ created via client UI is visible to the matching supplier; proposal submission lands in DB; all 5 sidebar pages render with the proper data; pending supplier lands on the gated `/pending` page with sidebar locked. Six supplier-side pages migrated off the recursive RLS pair using the established admin-client workaround. One UX bug (re-submit CTA) fixed.
 
 ### Section 1.12 — Cross-role guards
 _(pending)_
