@@ -19,14 +19,23 @@ function NavLinks() {
       <Link href="/admin" className={cls}>
         نظرة عامة
       </Link>
+      <Link href="/admin/users" className={cls}>
+        المستخدمون
+      </Link>
       <Link href="/admin/suppliers/pending" className={cls}>
         موردون قيد المراجعة
       </Link>
       <Link href="/admin/rfqs" className={cls}>
         الطلبات
       </Link>
+      <Link href="/admin/agreements/pending" className={cls}>
+        الاتفاقيات المعلّقة
+      </Link>
       <Link href="/admin/chats" className={cls}>
         المحادثات
+      </Link>
+      <Link href="/admin/panics" className={cls}>
+        🚨 التصعيدات
       </Link>
       <Link href="/admin/escrow/pending-deposits" className={cls}>
         الإيداعات المعلّقة
@@ -34,8 +43,14 @@ function NavLinks() {
       <Link href="/admin/escrow/pending-releases" className={cls}>
         تحرير دفعات الموردين
       </Link>
+      <Link href="/admin/escrow/transactions" className={cls}>
+        دفتر الضمان
+      </Link>
       <Link href="/admin/disputes" className={cls}>
         النزاعات
+      </Link>
+      <Link href="/admin/activity" className={cls}>
+        سجل النشاط
       </Link>
     </nav>
   );

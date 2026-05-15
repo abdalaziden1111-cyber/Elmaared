@@ -1,4 +1,4 @@
-import { Link } from '@/lib/i18n/routing';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireRole } from '@/lib/auth/require-role';

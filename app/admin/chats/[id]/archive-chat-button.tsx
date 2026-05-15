@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/lib/i18n/routing';
+import { useRouter } from 'next/navigation';
 import { archiveChatAction } from '@/app/actions/admin';
 import { Loader2 } from 'lucide-react';
 

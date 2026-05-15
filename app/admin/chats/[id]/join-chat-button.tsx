@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/lib/i18n/routing';
+import { useRouter } from 'next/navigation';
 import { adminJoinChatAction } from '@/app/actions/chat';
 import { Loader2 } from 'lucide-react';
 

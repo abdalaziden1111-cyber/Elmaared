@@ -1,4 +1,4 @@
-import { Link } from '@/lib/i18n/routing';
+import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort, timeAgo } from '@/lib/utils/format';
 import { Pagination } from '@/components/ui/pagination';
