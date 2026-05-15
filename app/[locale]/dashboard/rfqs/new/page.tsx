@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { createRfqAction } from '@/app/actions/rfq';
 import type { ActionResult } from '@/app/actions/auth';
 import { useRfqWizardStore, type ServiceType } from '@/stores/rfq-wizard-store';
@@ -380,6 +380,125 @@ function BudgetStep({
   );
 }
 
+const SERVICE_AR_LABEL: Record<ServiceType, string> = {
+  booth: 'تصميم وتنفيذ أجنحة',
+  gifts: 'هدايا ترويجية',
+  event: 'تنظيم فعاليات',
+  printing: 'مطبوعات',
+};
+
+const DETAIL_LABELS: Record<string, { label: string; map?: Record<string, string> }> = {
+  // booth
+  area: { label: 'مساحة الجناح' },
+  exhibitionName: { label: 'اسم المعرض' },
+  exhibitionDate: { label: 'تاريخ المعرض' },
+  floors: { label: 'عدد الطوابق', map: { '1': 'طابق واحد', '2': 'طابقان' } },
+  // gifts
+  recipientType: {
+    label: 'نوع المتلقي',
+    map: { VIP: 'VIP', general: 'عام', staff: 'موظفون', speakers: 'متحدثون' },
+  },
+  quantity: { label: 'الكمية' },
+  category: {
+    label: 'الفئة',
+    map: {
+      tech: 'تقنية',
+      traditional: 'تراثية',
+      luxury: 'فاخرة',
+      eco: 'صديقة للبيئة',
+      custom: 'مخصصة',
+    },
+  },
+  deliveryDate: { label: 'تاريخ التسليم' },
+  // event
+  eventType: {
+    label: 'نوع الفعالية',
+    map: {
+      conference: 'مؤتمر',
+      seminar: 'ندوة',
+      gala: 'حفل',
+      launch: 'إطلاق منتج',
+      workshop: 'ورشة عمل',
+    },
+  },
+  expectedAttendees: { label: 'عدد الحضور المتوقع' },
+  eventDate: { label: 'تاريخ الفعالية' },
+  duration: {
+    label: 'المدة',
+    map: { half_day: 'نصف يوم', full_day: 'يوم كامل', multi_day: 'عدة أيام' },
+  },
+  // printing
+  printType: {
+    label: 'نوع المطبوعة',
+    map: {
+      brochure: 'بروشور',
+      banner: 'لوحة',
+      business_card: 'بطاقة عمل',
+      catalog: 'كتالوج',
+      poster: 'بوستر',
+      flyer: 'فلاير',
+      sticker: 'ملصق',
+      other: 'أخرى',
+    },
+  },
+  size: { label: 'المقاس' },
+};
+
+const SERVICE_FIELD_ORDER: Record<ServiceType, string[]> = {
+  booth: ['area', 'floors', 'exhibitionName', 'exhibitionDate'],
+  gifts: ['recipientType', 'category', 'quantity', 'deliveryDate'],
+  event: ['eventType', 'duration', 'expectedAttendees', 'eventDate'],
+  printing: ['printType', 'size', 'quantity', 'deliveryDate'],
+};
+
+function formatDetailValue(key: string, raw: unknown): string {
+  if (raw == null || raw === '') return '—';
+  const meta = DETAIL_LABELS[key];
+  const str = String(raw);
+  if (meta?.map?.[str]) return meta.map[str];
+  // Try parse as date (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    try {
+      return new Intl.DateTimeFormat('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(new Date(str));
+    } catch {
+      return str;
+    }
+  }
+  return str;
+}
+
+function formatDeadline(value: string): string {
+  if (!value) return '—';
+  // datetime-local is "YYYY-MM-DDTHH:MM"
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return new Intl.DateTimeFormat('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+  } catch {
+    return value;
+  }
+}
+
+function formatBudget(min: string, max: string): string {
+  function fmt(v: string): string {
+    if (!v) return '?';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return v;
+    return new Intl.NumberFormat('ar-SA').format(n);
+  }
+  return `${fmt(min)} – ${fmt(max)} ﷼`;
+}
+
 function ReviewStep({
   data,
   formAction,
@@ -406,20 +525,43 @@ function ReviewStep({
     };
   }
 
+  const serviceAr = data.serviceType
+    ? SERVICE_AR_LABEL[data.serviceType as ServiceType]
+    : '—';
+  const city = data.exhibitionCity
+    ? CITIES.find((c) => c.value === data.exhibitionCity)?.labelAr ??
+      data.exhibitionCity
+    : null;
+  const detailKeys = data.serviceType
+    ? SERVICE_FIELD_ORDER[data.serviceType as ServiceType] ?? []
+    : [];
+
   return (
     <div>
       <h2 className="text-lg font-semibold">مراجعة الطلب</h2>
+      <p className="mt-1 text-xs text-[var(--color-stone-600)]">
+        راجع التفاصيل قبل النشر. يمكنك العودة لتعديل أي خطوة.
+      </p>
+
       <dl className="mt-4 space-y-2 text-sm">
-        <Row label="نوع الخدمة" value={data.serviceType} />
-        <Row label="العنوان" value={data.title} />
-        {data.exhibitionCity ? <Row label="المدينة" value={data.exhibitionCity} /> : null}
-        {data.budgetMin || data.budgetMax ? (
-          <Row
-            label="الميزانية"
-            value={`${data.budgetMin || '?'} – ${data.budgetMax || '?'} ﷼`}
-          />
+        <Row label="نوع الخدمة" value={serviceAr} />
+        <Row label="العنوان" value={data.title || '—'} />
+        {data.description ? (
+          <Row label="الوصف" value={data.description} />
         ) : null}
-        {data.proposalsDeadline ? <Row label="آخر موعد" value={data.proposalsDeadline} /> : null}
+        {city ? <Row label="المدينة" value={city} /> : null}
+        {detailKeys.map((k) => {
+          const v = data.details[k];
+          if (v == null || v === '') return null;
+          const label = DETAIL_LABELS[k]?.label ?? k;
+          return <Row key={k} label={label} value={formatDetailValue(k, v)} />;
+        })}
+        {data.budgetMin || data.budgetMax ? (
+          <Row label="الميزانية" value={formatBudget(data.budgetMin, data.budgetMax)} />
+        ) : null}
+        {data.proposalsDeadline ? (
+          <Row label="آخر موعد لاستقبال العروض" value={formatDeadline(data.proposalsDeadline)} />
+        ) : null}
       </dl>
 
       {state && !state.ok ? (
