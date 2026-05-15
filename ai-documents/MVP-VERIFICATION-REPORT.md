@@ -453,8 +453,52 @@ Then have `proposals.client_view_proposals_for_own_rfq` use this function instea
 #### Section 1.6 verdict (post-fix)
 ✅ P0 RLS recursion bug worked around. All 4 client-RFQ pages render with real DB data. ⏳ DB-side RLS rewrite filed as P1 hardening (requires direct Postgres access).
 
-### Section 1.7 — Chat
-_(pending)_
+### Section 1.7 — Chat (3-party negotiation)
+
+#### Route + structure
+`/ar/dashboard/rfqs/[id]/chats/[chatId]` — page renders the existing `<ChatWindow>` client component which:
+- Maintains a Supabase Realtime channel on `messages` filtered by `chat_id`
+- Falls back to 8-second polling on disconnect with reconnect + exponential backoff
+- Exposes a controlled-input message form (max 4000 chars)
+- Renders the `<PanicButton>` (clients + suppliers only — admin doesn't escalate themselves)
+- Bubble styling differentiates mine / other / admin / panic
+
+The page itself reads chat + messages via `createClient()` (RLS-scoped). Chat & message RLS policies don't reference rfqs → no recursion bug on these reads.
+
+#### Issues collected
+
+| # | Sev | Issue |
+|---|---|---|
+| 1 | 🐛 P0 | `shortlistProposalAction` (the action that creates a chat in the first place) was hitting the same recursive RLS pair on `rfqs ↔ proposals`: the lookup query was `from('proposals').select('id, …, rfq:rfqs(client_id)')` via the user-scoped client → recursion error → action returned "لم نجد العرض" → no chat could ever be created. |
+| 2 | ⏭️ Investigated, no bug | The chat detail page reads chats + messages via the user-scoped client. Both RLS policies use `client_id = auth.uid()` / `EXISTS(suppliers …)` joins — none reference rfqs → no recursion. Reads work as-is. |
+
+#### Fix applied (commit `fix(section-1.7)`)
+
+[app/actions/chat.ts](app/actions/chat.ts) — `shortlistProposalAction` now reads the proposal + parent RFQ via the admin client (same workaround as Section 1.6) and keeps the explicit `proposal.rfq?.client_id !== user.id → error` ownership check. All side-effects (proposal status update, chat insert, system message, supplier notification, rfq status flip to negotiating) were already on the admin client and didn't need to change.
+
+#### End-to-end test (re-verified live)
+
+Driven flow:
+1. **Seed proposal** — inserted a "submitted" proposal from the seeded supplier (`شركة الإبداع للمعارض`) for the seeded open RFQ (`RFQ-2026-00001`) via admin client. Status: submitted, total: 65,000 ﷼, 30-day delivery.
+2. **Compare page** — `/ar/dashboard/rfqs/06d8e776-…/compare` now shows "1 عروض" + the proposal card with company name, price, delivery days, AI-scoring placeholder, "submitted" status, "ابدأ المحادثة" button.
+3. **Shortlist** — clicked "ابدأ المحادثة" → `shortlistProposalAction` ran successfully (after the RLS fix) → redirected to `/ar/dashboard/rfqs/.../chats/de405783-…` → chat created → system message inserted ("تمّ ترشيح عرضك. ابدأ التفاوض من هنا.") → proposal status flipped to `shortlisted`.
+4. **Send message (client)** — wrote "هل التصميم يشمل شاشة LED كبيرة في الواجهة؟" → `sendMessageAction` inserted message row → bubble appeared in UI via realtime echo.
+5. **Realtime cross-session test** — inserted a supplier-side reply directly into `messages` via Node + service role ("نعم — شاشة LED 4×2 متر في الواجهة + 2 شاشة جانبية. كل ذلك مشمول في السعر.") → the message appeared in the client's UI **within ~4 seconds** without a page refresh. Realtime subscription works. ✓
+6. **Panic button** — clicked "صعّد لـ Admin" → dialog opened with textarea "اشرح سبب التصعيد (10 أحرف على الأقل)" → typed "المورد لم يردّ على سؤالي المهم منذ يومين بشأن مواعيد التسليم" → submit → `raisePanicAction` updated `chats.panic_at` + `chats.panic_reason` + inserted a special message row with `is_panic_alert=true`. UI now shows: panic message in red-bordered bubble, button replaced with "تم التصعيد لـ Admin" disabled state, input still active.
+
+DB after end-to-end:
+```
+chat.panic_at = 2026-05-15T18:06:08.398+00:00
+chat.panic_reason = "المورد لم يردّ على سؤالي المهم منذ يومين..."
+4 messages: 1 system + 1 client + 1 supplier + 1 panic
+```
+
+#### Verdict
+✅ Chat fully working end-to-end. Send + receive + realtime delivery + panic escalation all functional. The RLS recursion that broke `shortlistProposalAction` is fixed via admin-client workaround (same pattern as Section 1.6). DB-side RLS rewrite remains a P1 hardening item.
+
+Open follow-ups:
+- Admin's chat oversight view (`/admin/chats/[id]`) and `adminJoinChatAction` will be exercised in Section 2.4.
+- Multi-supplier scenario (4-chat cap, CHAT_CAP_REACHED) needs 5 proposals to test — deferred to a fuller seed in Section 1.11.
 
 ### Section 1.8 — Agreement
 _(pending)_

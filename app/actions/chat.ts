@@ -14,8 +14,11 @@ export async function shortlistProposalAction(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'يجب تسجيل الدخول.' };
 
-  // Look up the proposal + verify the caller owns the RFQ
-  const { data: proposalRowRaw } = await supabase
+  // Workaround for the recursive RLS pair on rfqs ↔ proposals (see
+  // dashboard/rfqs pages): we look up the proposal + parent RFQ via the
+  // admin client and enforce client ownership manually below.
+  const admin = createAdminClient();
+  const { data: proposalRowRaw } = await admin
     .from('proposals')
     .select('id, rfq_id, supplier_id, status, rfq:rfqs(client_id)')
     .eq('id', proposalId)
@@ -27,8 +30,6 @@ export async function shortlistProposalAction(
   if (proposal.rfq?.client_id !== user.id) {
     return { ok: false, error: 'ليس لديك صلاحية على هذا العرض.' };
   }
-
-  const admin = createAdminClient();
 
   // Mark the proposal as shortlisted
   await admin.from('proposals').update({ status: 'shortlisted' }).eq('id', proposal.id);
@@ -104,12 +105,27 @@ export async function shortlistProposalAction(
     .single();
   const rfqRow = rfqRowRaw as { rfq_number: string } | null;
 
+  // Recipient's preferred locale, used to build a correctly-prefixed link.
+  let recipientLocale: string | null = null;
+  if (supplierOwner) {
+    const { data: profRaw } = await admin
+      .from('profiles')
+      .select('preferred_language')
+      .eq('id', supplierOwner.owner_id)
+      .maybeSingle();
+    recipientLocale = (profRaw as { preferred_language: string | null } | null)
+      ?.preferred_language ?? null;
+  }
+
   if (supplierOwner && rfqRow) {
-    const payload = buildNotification({
-      type: 'proposal_shortlisted',
-      rfqNumber: rfqRow.rfq_number,
-      chatId: chat.id,
-    });
+    const payload = buildNotification(
+      {
+        type: 'proposal_shortlisted',
+        rfqNumber: rfqRow.rfq_number,
+        chatId: chat.id,
+      },
+      recipientLocale
+    );
     await admin.from('notifications').insert({
       user_id: supplierOwner.owner_id,
       type: 'proposal_shortlisted',
