@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
+import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency } from '@/lib/utils/format';
 import { ShortlistButton } from './shortlist-button';
 import { AwardButton } from './award-button';
@@ -32,20 +32,23 @@ export default async function ComparePage({
 }) {
   const { id } = await params;
   const { user } = await requireRole(['client']);
-  const supabase = await createClient();
 
-  // Verify ownership of the RFQ
-  const { data: rfqRowRaw } = await supabase
+  // Workaround for recursive RLS on rfqs ↔ proposals: read via admin, enforce
+  // ownership manually. requireRole already proved the user is a client.
+  const admin = createAdminClient();
+
+  const { data: rfqRowRaw } = await admin
     .from('rfqs')
     .select('id, rfq_number, title, client_id')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
   const rfq = rfqRowRaw as
     | { id: string; rfq_number: string; title: string; client_id: string }
     | null;
   if (!rfq || rfq.client_id !== user.id) notFound();
 
-  const { data: proposalsRaw } = await supabase
+  const { data: proposalsRaw } = await admin
     .from('proposals')
     .select(
       `id, total_price, delivery_days, description, ai_score, ai_summary, ai_strengths, ai_concerns, status, created_at,

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 
 interface ProposalDetail {
@@ -34,18 +34,21 @@ export default async function ClientProposalDetailPage({
 }) {
   const { id: rfqId, proposalId } = await params;
   const { user } = await requireRole(['client']);
-  const supabase = await createClient();
 
-  // Verify ownership through the RFQ
-  const { data: rfqRowRaw } = await supabase
+  // Workaround for recursive RLS on rfqs ↔ proposals: read via admin and
+  // enforce ownership manually through the RFQ.client_id check.
+  const admin = createAdminClient();
+
+  const { data: rfqRowRaw } = await admin
     .from('rfqs')
     .select('id, client_id')
     .eq('id', rfqId)
+    .is('deleted_at', null)
     .single();
   const rfq = rfqRowRaw as { id: string; client_id: string } | null;
   if (!rfq || rfq.client_id !== user.id) notFound();
 
-  const { data: rowRaw } = await supabase
+  const { data: rowRaw } = await admin
     .from('proposals')
     .select(
       `id, rfq_id, total_price, delivery_days, description, scope_of_work, excluded_items, payment_terms, validity_days, status, created_at, ai_score, ai_summary, ai_strengths, ai_concerns,

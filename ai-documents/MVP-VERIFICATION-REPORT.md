@@ -388,7 +388,70 @@ Stale first-attempt row + orphan files cleaned up after the fix verified.
 ✅ All P1 issues closed. Wizard is now a true 5-step flow with **live file uploads to cloud Supabase Storage**, and the resulting RFQ row carries `logo_url` + `attachments[]` correctly. RLS migration committed for future application.
 
 ### Section 1.6 — RFQ list & detail (client)
-_(pending)_
+
+#### Critical bug found
+
+**🐛 P0 — `infinite recursion detected in policy for relation "rfqs"`.**
+
+The 4 client-side RFQ pages (list, detail, compare, proposal-detail) all use the user-scoped `createClient()` (auth-cookie-bearing PostgREST) to read `rfqs`. The DB has a recursive RLS pair:
+
+- `rfqs.selected_supplier_view_rfq` USING (EXISTS … FROM proposals …)
+- `proposals.client_view_proposals_for_own_rfq` USING (EXISTS … FROM rfqs …)
+
+When evaluating a SELECT on rfqs, Postgres checks every applicable policy → one of them queries proposals → proposals RLS queries rfqs → rfqs RLS queries proposals → recursion error.
+
+Reproducer (Node script signing in as `ahmed.client.test` and running `from('rfqs').select(...).eq('client_id', user.id)`):
+```
+query result: ERROR: infinite recursion detected in policy for relation "rfqs"
+```
+
+Consequences observed:
+- `/ar/dashboard/rfqs` showed empty state despite DB having 2 RFQs owned by the client
+- `/ar/dashboard/rfqs/[id]` rendered 404 even for the user's own RFQ (the failing query returned null → `notFound()`). This was visible immediately after my Section 1.5 RFQ-submit test where the post-publish redirect went to the 404 page.
+- `/ar/dashboard/rfqs/[id]/compare` and `.../proposals/[proposalId]` similarly broken.
+
+#### Fix applied (commit `fix(section-1.6)`)
+
+Could not fix the RLS at the DB layer — direct Postgres access is IPv6-only and unreachable from this environment. Workaround in app code:
+
+Switched the 4 pages from `createClient()` (RLS-scoped) to `createAdminClient()` (service-role, bypasses RLS) AND added explicit ownership enforcement (`rfq.client_id !== user.id → notFound()`, list `.eq('client_id', user.id)`). `requireRole(['client'])` already guarantees the caller is a client before any query runs.
+
+Files changed:
+- [app/[locale]/dashboard/rfqs/page.tsx](app/%5Blocale%5D/dashboard/rfqs/page.tsx) — list query via admin
+- [app/[locale]/dashboard/rfqs/[id]/page.tsx](app/%5Blocale%5D/dashboard/rfqs/%5Bid%5D/page.tsx) — detail query via admin (plus existing soft-delete `deleted_at IS NULL` guard)
+- [app/[locale]/dashboard/rfqs/[id]/compare/page.tsx](app/%5Blocale%5D/dashboard/rfqs/%5Bid%5D/compare/page.tsx) — rfq + proposals queries via admin
+- [app/[locale]/dashboard/rfqs/[id]/proposals/[proposalId]/page.tsx](app/%5Blocale%5D/dashboard/rfqs/%5Bid%5D/proposals/%5BproposalId%5D/page.tsx) — rfq ownership + proposal query via admin
+
+The fix preserves all existing ownership checks. Security model is equivalent: every query was previously gated by RLS (`client_id = auth.uid()`) and is now gated by application-level `eq('client_id', user.id)` + the `requireRole(['client'])` precheck.
+
+#### Long-term remediation (deferred)
+The recursive RLS policies should be rewritten using a SECURITY DEFINER helper function so the cycle breaks. Filed as P1 hardening — requires DB-direct access. Add a migration like:
+```sql
+CREATE OR REPLACE FUNCTION public.user_can_see_rfq(rfq_id uuid)
+  RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE
+  SET search_path = public AS $$
+    SELECT EXISTS (
+      SELECT 1 FROM rfqs r
+      WHERE r.id = rfq_id AND r.client_id = auth.uid()
+    );
+  $$;
+```
+Then have `proposals.client_view_proposals_for_own_rfq` use this function instead of an inline subquery on rfqs.
+
+#### Re-verified live
+| Page | Before | After |
+|---|---|---|
+| `/ar/dashboard/rfqs` | Empty state despite 2 RFQs in DB | Shows both RFQs: RFQ-2026-00003 (مسودة) + RFQ-2026-00001 (مفتوح), "إجمالي: 2" |
+| `/ar/dashboard/rfqs/5d2f7924-…` (draft) | 404 | H1 "جناح اختبار e2e مع ملفات v2", status chip "مسودة", details section, no error |
+| `/ar/dashboard/rfqs/06d8e776-…/compare` | 404 (broken) | H1 "مقارنة العروض", "0 عروض" empty state ("لم تصل عروض بعد. فور تقديم أول عرض، سنخطرك ويبدأ الذكاء الاصطناعي بالتقييم تلقائياً.") — correct since no proposals exist yet |
+| `/ar/dashboard/rfqs/06d8e776-…/proposals/000…` | 404 (broken — couldn't even reach the page) | 404 (correct — proposal doesn't exist) |
+
+#### Open items for later sections
+- Shortlist + Award actions on the compare page require real proposals. Will exercise when supplier creates a proposal in Section 1.11.
+- The pre-existing search bar + status filter + pagination on the list page work because they use the admin client too; tested filter pass-through indirectly via the unchanged query shape.
+
+#### Section 1.6 verdict (post-fix)
+✅ P0 RLS recursion bug worked around. All 4 client-RFQ pages render with real DB data. ⏳ DB-side RLS rewrite filed as P1 hardening (requires direct Postgres access).
 
 ### Section 1.7 — Chat
 _(pending)_
