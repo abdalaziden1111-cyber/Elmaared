@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-const ratingField = z.number().int().min(1).max(5);
+const ratingField = z
+  .number({ message: 'يرجى اختيار تقييم' })
+  .int({ message: 'التقييم يجب أن يكون رقماً صحيحاً' })
+  .min(1, 'التقييم يجب أن يكون 1 على الأقل')
+  .max(5, 'التقييم لا يتجاوز 5');
 
 export const reviewSchema = z.object({
   ratingOverall: ratingField,
@@ -9,7 +13,10 @@ export const reviewSchema = z.object({
   ratingCommunication: ratingField.optional(),
   ratingFlexibility: ratingField.optional(),
   ratingPriceValue: ratingField.optional(),
-  comment: z.string().optional(),
+  comment: z
+    .string()
+    .max(2000, 'التعليق طويل جداً (الحد الأقصى 2000 حرف)')
+    .optional(),
 });
 
 export type ReviewInput = z.infer<typeof reviewSchema>;

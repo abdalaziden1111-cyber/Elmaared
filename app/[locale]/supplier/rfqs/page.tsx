@@ -17,6 +17,13 @@ interface RfqRow {
   created_at: string;
 }
 
+const SERVICE_LABEL: Record<string, string> = {
+  booth: 'بوث',
+  gifts: 'هدايا',
+  event: 'فعالية',
+  printing: 'طباعة',
+};
+
 const PAGE_SIZE = 20;
 
 export default async function SupplierRfqsListPage({
@@ -114,7 +121,7 @@ export default async function SupplierRfqsListPage({
                       <div className="text-xs text-[var(--color-stone-600)] num">{r.rfq_number}</div>
                       <h2 className="mt-0.5 text-base font-semibold">{r.title}</h2>
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--color-stone-600)]">
-                        <span>{r.service_type}</span>
+                        <span>{SERVICE_LABEL[r.service_type] ?? r.service_type}</span>
                         {r.exhibition_city ? <span>· {r.exhibition_city}</span> : null}
                         {r.budget_max ? (
                           <span>· حتى {r.budget_max.toLocaleString('en')} ﷼</span>

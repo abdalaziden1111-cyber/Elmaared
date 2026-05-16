@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { mapPostgresError, isDuplicateError } from '@/lib/utils/postgres-errors';
 import { buildNotification } from '@/lib/notifications/build';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 export async function shortlistProposalAction(
@@ -219,6 +220,15 @@ export async function raisePanicAction(
     panic_reason: reason,
   });
 
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: profile.role,
+    action: 'panic_raised',
+    resourceType: 'chat',
+    resourceId: chatId,
+    metadata: { reason },
+  });
+
   revalidatePath(`/admin/chats`);
   return { ok: true };
 }
@@ -248,6 +258,14 @@ export async function adminJoinChatAction(chatId: string): Promise<ActionResult>
     sender_role: 'admin',
     content: 'انضم Admin للمحادثة لمساعدتكم.',
     is_admin_intervention: true,
+  });
+
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'admin',
+    action: 'admin_joined_chat',
+    resourceType: 'chat',
+    resourceId: chatId,
   });
 
   return { ok: true };

@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireRole } from '@/lib/auth/require-role';
 import { isSafeHttpsUrl } from '@/lib/utils/url';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
+import { recordAudit } from '@/lib/audit/record';
 import type { ActionResult } from './auth';
 
 export async function uploadInitialReceiptAction(
@@ -65,6 +66,14 @@ export async function uploadInitialReceiptAction(
     actor_role: 'client',
   });
 
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'client',
+    action: 'deposit_receipt_uploaded',
+    resourceType: 'escrow',
+    resourceId: escrowId,
+  });
+
   revalidatePath(`/dashboard/rfqs/${tx.rfq_id}/escrow`);
   return { ok: true };
 }
@@ -105,8 +114,17 @@ export async function adminConfirmInitialDepositAction(
     actor_role: 'admin',
   });
 
-  // Move RFQ to in_progress so the supplier can start work
-  await admin.from('rfqs').update({ status: 'in_progress' }).eq('id', tx.rfq_id);
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'admin',
+    action: 'deposit_confirmed',
+    resourceType: 'escrow',
+    resourceId: escrowId,
+    metadata: { amount: tx.initial_deposit },
+  });
+
+  // MVP evidence-only mode: RFQ is already in_progress (set by signAgreementAction).
+  // Admin confirmation is just acknowledgement of the receipt for the audit trail.
 
   revalidatePath('/admin/escrow/pending-deposits');
   revalidatePath(`/dashboard/rfqs/${tx.rfq_id}/escrow`);
@@ -191,7 +209,17 @@ export async function submitDeliveryAction(
     .update({ status: 'delivered' })
     .eq('rfq_id', rfqId);
 
-  revalidatePath(`/supplier/projects/${rfqId}`);
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'supplier',
+    action: 'delivery_submitted',
+    resourceType: 'rfq',
+    resourceId: rfqId,
+    metadata: { photoCount: photos.length },
+  });
+
+  revalidatePath('/supplier/projects');
+  revalidatePath(`/supplier/rfqs/${rfqId}`);
   revalidatePath(`/dashboard/rfqs/${rfqId}/escrow`);
   return { ok: true };
 }
@@ -225,10 +253,37 @@ export async function approveDeliveryAction(
     })
     .eq('rfq_id', rfqId);
 
-  await admin
+  // MVP evidence-only mode: no platform-held funds, so we skip the final-payment
+  // cycle and admin payout step. Client approval closes the project directly.
+  const { data: txRow } = await admin
     .from('escrow_transactions')
-    .update({ status: 'final_payment' })
-    .eq('rfq_id', rfqId);
+    .update({ status: 'released', released_at: new Date().toISOString() })
+    .eq('rfq_id', rfqId)
+    .select('id')
+    .single();
+
+  await admin.from('rfqs').update({ status: 'completed' }).eq('id', rfqId);
+
+  // Audit-trail ledger entry for the release transition (closes the P1-4
+  // gap from the MVP report: every other transition wrote to escrow_events
+  // except this one).
+  if (txRow) {
+    await admin.from('escrow_events').insert({
+      escrow_id: txRow.id,
+      rfq_id: rfqId,
+      event_type: 'delivery_approved',
+      actor_id: user.id,
+      actor_role: 'client',
+    });
+  }
+
+  await recordAudit(admin, {
+    actorId: user.id,
+    actorRole: 'client',
+    action: 'delivery_approved',
+    resourceType: 'rfq',
+    resourceId: rfqId,
+  });
 
   revalidatePath(`/dashboard/rfqs/${rfqId}`);
   return { ok: true };
