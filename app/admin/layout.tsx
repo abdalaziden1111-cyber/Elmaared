@@ -55,6 +55,12 @@ function NavLinks() {
       <Link href="/admin/activity" className={cls}>
         سجل النشاط
       </Link>
+      <Link href="/admin/admins" className={cls}>
+        فريق Admin
+      </Link>
+      <Link href="/admin/settings" className={cls}>
+        إعدادات المنصة
+      </Link>
     </nav>
   );
 }

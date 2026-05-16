@@ -836,7 +836,13 @@ The pending-list link "فتح الملف الكامل + المستندات ←" 
 
 ### Section 2.7 — Admin gaps vs docs
 
-**Correction to an earlier count error in this section:** the first version of this block claimed "13 missing → 13 built", but the table actually only listed 12 (9 functional + 3 placeholder). A real audit against [04-screens-inventory.md](app-exhibition-mvp/ai-documents/04-screens-inventory.md) found one more doc-spec route I had missed entirely: `/admin/suppliers` (full supplier list, all statuses — distinct from `/admin/suppliers/pending`). That page is **now built**, bringing the count to a real 13 (10 functional + 3 placeholder). Two doc-spec routes remain unbuilt and are explicitly Phase 2+: `/admin/admins` (admin team management) and `/admin/settings` (platform settings).
+**Correction to an earlier count error in this section:** the first version of this block claimed "13 missing → 13 built", but the table actually only listed 12 (9 functional + 3 placeholder). A real audit against [04-screens-inventory.md](app-exhibition-mvp/ai-documents/04-screens-inventory.md) found three more doc-spec routes I had missed entirely. **All three now built**:
+
+- `/admin/suppliers` — full supplier directory (all statuses) with status filter + search; complements `/admin/suppliers/pending`.
+- `/admin/admins` — admin team list with KPIs (total / active 24h / no-activity), per-admin last-action timestamp pulled from `audit_logs`, linkable to `/admin/users/[id]`. RBAC editing UI deferred to Phase 2+ (notice rendered).
+- `/admin/settings` — read-only platform configuration view: commission rates (2%/3%/5%) + VAT 15% pulled from `lib/constants/fees.ts`, escrow-mode badge (`evidence-only`), 4 service types, 10 cities, 14 notification kinds. Editing UI deferred to Phase 2+ (requires `platform_settings` table + RBAC).
+
+**Final count: 15 doc-spec admin pages built in this section** (12 functional + 3 placeholder). All 24 admin routes from the doc inventory now exist in code. Sidebar grew to 15 nav links.
 
 #### 10 fully-functional pages with real data
 
@@ -852,6 +858,8 @@ The pending-list link "فتح الملف الكامل + المستندات ←" 
 | `/admin/panics` | Dedicated panic-events queue (chats with `panic_at IS NOT NULL`), red border for unhandled, success badge for "Admin انضمّت" — duplicates the `?filter=panic` chats view in a more focused triage UI. |
 | `/admin/agreements/pending` | Lists agreements where `status NOT IN ('signed','cancelled')` for monitoring stuck negotiations (no admin action — agreements are bilateral). |
 | `/admin/suppliers` | Full supplier directory (all statuses) with status filter + search + name/CR + rating + completed-orders count + status pill. Complements `/admin/suppliers/pending`. |
+| `/admin/admins` | Admin team list (3 KPIs: total / active 24h / no-activity), per-row last-action timestamp from `audit_logs`. Links to `/admin/users/[id]`. |
+| `/admin/settings` | Platform configuration viewer: commission rates + VAT (from `lib/constants/fees.ts`), escrow mode (`evidence-only`), 4 service types, 10 cities, 14 notification kinds. |
 
 #### 3 placeholder pages (ComingSoon pattern)
 
