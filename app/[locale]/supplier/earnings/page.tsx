@@ -80,15 +80,38 @@ export default async function SupplierEarningsPage({
   const agreements = (agreementsRaw ?? []) as unknown as { id: string }[];
   const agreementIds = agreements.map((a) => a.id);
 
-  // Summary cards always show across ALL transactions (ignore filter so the
-  // user sees their full position, not a filtered slice of money).
+  // Run the 3 escrow queries in parallel — they all depend on the same
+  // agreementIds array but not on each other.
   let summaryRows: SummaryRow[] = [];
+  let rows: TxRow[] = [];
+  let totalCount = 0;
+
   if (agreementIds.length > 0) {
-    const { data: summaryRaw } = await supabase
+    const start = (page - 1) * PAGE_SIZE;
+    let countQ = supabase
       .from('escrow_transactions')
-      .select('supplier_net, status')
+      .select('id', { count: 'exact', head: true })
       .in('agreement_id', agreementIds);
-    summaryRows = (summaryRaw ?? []) as unknown as SummaryRow[];
+    if (status) countQ = countQ.eq('status', status);
+    let rowsQ = supabase
+      .from('escrow_transactions')
+      .select(
+        'id, rfq_id, supplier_net, total_amount, status, released_at, created_at, rfqs(rfq_number, title)'
+      )
+      .in('agreement_id', agreementIds);
+    if (status) rowsQ = rowsQ.eq('status', status);
+
+    const [summaryResp, countResp, rowsResp] = await Promise.all([
+      supabase
+        .from('escrow_transactions')
+        .select('supplier_net, status')
+        .in('agreement_id', agreementIds),
+      countQ,
+      rowsQ.order('created_at', { ascending: false }).range(start, start + PAGE_SIZE - 1),
+    ]);
+    summaryRows = (summaryResp.data ?? []) as unknown as SummaryRow[];
+    totalCount = countResp.count ?? 0;
+    rows = (rowsResp.data ?? []) as unknown as TxRow[];
   }
 
   const released = summaryRows
@@ -98,32 +121,6 @@ export default async function SupplierEarningsPage({
     .filter((r) => PENDING_STATUSES.has(r.status))
     .reduce((sum, r) => sum + (r.supplier_net ?? 0), 0);
   const total = released + pending;
-
-  // Paginated list respects the filter.
-  let rows: TxRow[] = [];
-  let totalCount = 0;
-  if (agreementIds.length > 0) {
-    let countQ = supabase
-      .from('escrow_transactions')
-      .select('id', { count: 'exact', head: true })
-      .in('agreement_id', agreementIds);
-    if (status) countQ = countQ.eq('status', status);
-    const { count } = await countQ;
-    totalCount = count ?? 0;
-
-    const start = (page - 1) * PAGE_SIZE;
-    let rowsQ = supabase
-      .from('escrow_transactions')
-      .select(
-        'id, rfq_id, supplier_net, total_amount, status, released_at, created_at, rfqs(rfq_number, title)'
-      )
-      .in('agreement_id', agreementIds);
-    if (status) rowsQ = rowsQ.eq('status', status);
-    const { data: txRowsRaw } = await rowsQ
-      .order('created_at', { ascending: false })
-      .range(start, start + PAGE_SIZE - 1);
-    rows = (txRowsRaw ?? []) as unknown as TxRow[];
-  }
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilter = Boolean(status);

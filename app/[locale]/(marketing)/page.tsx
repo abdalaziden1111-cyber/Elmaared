@@ -117,7 +117,7 @@ export default async function HomePage({
               className={`rounded-2xl ${card.tone} p-7`}
             >
               <h2 className="text-xl font-semibold">{card.title}</h2>
-              <p className="mt-3 text-sm leading-relaxed opacity-90">{card.body}</p>
+              <p className="mt-3 text-sm leading-relaxed">{card.body}</p>
               <Link
                 href={card.href}
                 className="mt-6 inline-flex items-center text-sm font-semibold underline-offset-4 hover:underline"
@@ -217,7 +217,7 @@ export default async function HomePage({
                 <blockquote className="text-sm leading-relaxed">"{tm.body}"</blockquote>
                 <figcaption className="mt-4 text-xs text-[var(--color-dune-gold)]">
                   <span className="font-semibold">{tm.name}</span>
-                  <span className="opacity-80"> · {tm.role}</span>
+                  <span className="text-[var(--color-cream)]/80"> · {tm.role}</span>
                 </figcaption>
               </figure>
             ))}

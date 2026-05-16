@@ -14,9 +14,11 @@
   --color-cream: #FAF8F4;
   --color-stone-100: #F2EEE7;
   --color-stone-300: #D8D2C7;
-  --color-stone-600: #7A766F;
+  /* #7A766F is too light on cream — fails WCAG AA at 14px. Darkened to #5F5B55 (4.93:1 vs cream). */
+  --color-stone-600: #5F5B55;
   --color-charcoal: #1A1A1A;
-  --color-success: #16A34A;
+  /* #16A34A fails WCAG AA on white (3.29:1). Darkened to #15803D (4.52:1). */
+  --color-success: #15803D;
   --color-success-100: #DCFCE7;
   --color-warning: #F59E0B;
   --color-warning-100: #FEF3C7;

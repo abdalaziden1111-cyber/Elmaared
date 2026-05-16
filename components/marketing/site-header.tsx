@@ -22,6 +22,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link
           href="/"
+          aria-label={tHome('title')}
           className="flex items-center gap-2 text-base font-semibold text-[var(--color-midnight-green)]"
         >
           <span

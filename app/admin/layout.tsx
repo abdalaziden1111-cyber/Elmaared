@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
@@ -7,6 +8,12 @@ import { MobileMenu } from '@/components/layout/mobile-menu';
 import { HeaderBar } from '@/components/header/header-bar';
 import { plexArabic, inter } from '@/app/fonts';
 import '@/app/globals.css';
+
+// Admin should never be indexed by search engines.
+export const metadata: Metadata = {
+  title: 'Admin · تطبيق المعارض',
+  robots: { index: false, follow: false, noarchive: true, nosnippet: true },
+};
 
 function NavLinks() {
   const cls =
