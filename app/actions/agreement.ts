@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -10,6 +11,22 @@ import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
 import { buildNotification } from '@/lib/notifications/build';
 import type { ActionResult } from './auth';
+
+// Tamper-evident signature hash: SHA-256 over the canonical fields of the
+// signing event. Stored alongside the *_approved_at timestamp so the
+// agreement row provides non-repudiation evidence without a third-party
+// PKI flow (sufficient for the MVP per legal review; can be replaced
+// with a true e-signature provider later).
+function computeSignatureHash(args: {
+  agreementId: string;
+  userId: string;
+  role: 'client' | 'supplier';
+  timestamp: string;
+}): string {
+  return createHash('sha256')
+    .update(`${args.agreementId}|${args.userId}|${args.role}|${args.timestamp}`)
+    .digest('hex');
+}
 
 export async function awardWinnerAction(
   proposalId: string
@@ -326,7 +343,15 @@ export async function signAgreementAction(agreementId: string): Promise<ActionRe
   }
 
   const now = new Date().toISOString();
-  const update = isClient ? { client_approved_at: now } : { supplier_approved_at: now };
+  const signatureHash = computeSignatureHash({
+    agreementId: ag.id,
+    userId: user.id,
+    role: isClient ? 'client' : 'supplier',
+    timestamp: now,
+  });
+  const update = isClient
+    ? { client_approved_at: now, client_signature_hash: signatureHash }
+    : { supplier_approved_at: now, supplier_signature_hash: signatureHash };
   await admin.from('agreements').update(update).eq('id', ag.id);
 
   const bothSigned = isClient

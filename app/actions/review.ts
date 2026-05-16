@@ -9,6 +9,8 @@ import { recordAudit } from '@/lib/audit/record';
 import { requireRole } from '@/lib/auth/require-role';
 import type { ActionResult } from './auth';
 
+// Post-completion client → supplier review. UI lives in
+// app/[locale]/dashboard/rfqs/[id]/review-form.tsx.
 export async function submitReviewAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -83,6 +85,10 @@ export async function submitReviewAction(
   return { ok: true };
 }
 
+// Client- or supplier-initiated formal dispute. UI lives in
+// components/dispute/open-dispute-form.tsx and is rendered on both the
+// client RFQ detail page and the supplier RFQ detail page when the RFQ
+// status is in the DISPUTABLE set (in_escrow/in_progress/delivered/completed).
 export async function openDisputeAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -99,6 +105,19 @@ export async function openDisputeAction(
     return { ok: false, error: 'الفئة وصف بمدى 30 حرف على الأقل مطلوبان.' };
   }
 
+  // Optional evidence URLs (one per line). Pre-validated client-side as
+  // https:// links; revalidate here so direct API hits can't sneak in
+  // javascript: or other unsafe schemes.
+  const evidenceRaw = String(formData.get('evidenceUrls') ?? '').trim();
+  const evidenceUrls = evidenceRaw
+    ? evidenceRaw
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+        .filter((l) => /^https?:\/\//i.test(l))
+        .slice(0, 10) // cap at 10 to keep the row sane
+    : [];
+
   const { data: profileRaw } = await supabase
     .from('profiles')
     .select('role')
@@ -114,6 +133,7 @@ export async function openDisputeAction(
     raised_by_role: profile.role,
     category,
     description,
+    evidence_urls: evidenceUrls,
     status: 'open',
   });
 

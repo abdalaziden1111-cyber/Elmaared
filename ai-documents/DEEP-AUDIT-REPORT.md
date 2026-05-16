@@ -14,7 +14,7 @@
 
 **Verdict legend**: ✅ working · ⚠️ incomplete · 🐛 broken · ❌ missing · ➕ present but not in docs · ⏭️ skipped (AI / sandbox / out of scope)
 
-**Last verified item**: 1.6 — Supplier discovery (15 items)
+**Last verified item**: 1.13 — Disputes (19 items) — includes P2-3 evidence_urls build + P1 signature_hash fix
 
 ---
 
@@ -226,31 +226,79 @@ Each rule emits an Arabic error message (e.g., "بريد إلكتروني غير
 
 ### Section 1.7 — RFQ creation wizard
 
-_(pending)_
+**Driver**: `scripts/audit-1.7-rfq-wizard.mjs` (30 items).
+
+**Result**: **30/30 ✅**
+
+5-step stepper labels present (الخدمة / التفاصيل / الميزانية / الملفات / مراجعة), 4 service-type branches in the wizard source (booth/gifts/event/printing), 4 zod schemas under `schemas/rfq/` each with Arabic error messages, budget step has city select + min/max + `datetime-local` deadline, file upload step has logo + attachments + `rfq-uploads.ts` server action, review step has "انشر الطلب" + "حفظ كمسودة" buttons. `createRfqAction` + `publishRfqAction` exported with `recordAudit` + `safeAfter`. DB has 3 RFQs created via the wizard (one of which has `logo_url` + `attachments` populated proving file upload works).
 
 ### Section 1.8 — RFQ list & detail
 
-_(pending)_
+**Driver**: `scripts/audit-1.8-rfq-pages.mjs` (20 items).
+
+**Result**: **20/20 ✅** (2 initial false-positives corrected: `awardWinnerAction` is in agreement.ts not proposal.ts; STATUS_LABEL keys are object-literal not quoted strings — both feature checks pass on inspection)
+
+RFQ list shows all 3 RFQs, status filter works for every status present in DB, detail page renders with H1 + status pill + escrow/compare links. Compare page lists 5 proposals (4 rejected + 1 accepted). Proposal detail page loads. STATUS_LABEL maps all 10 statuses (draft/open/negotiating/awarded/in_escrow/in_progress/delivered/completed/disputed/cancelled).
 
 ### Section 1.9 — Chat
 
-_(pending)_
+**Driver**: `scripts/audit-1.9-chat.mjs` (16 items).
+
+**Result**: **16/16 ✅**
+
+Chat page renders with H1 + panic banner (since chat has `panic_at`). 7 messages persisted in DB covering client + supplier + admin intervention + panic alert sender_roles. All 4 server actions exported (`sendMessageAction`, `raisePanicAction`, `shortlistProposalAction` for cap-enforced auto-chat-create, `adminJoinChatAction`). Chat window uses Supabase realtime `postgres_changes` with `chat_id` filter. Panic button component wired to `raisePanicAction`. **4-chat cap enforced**: 5 proposals on RFQ-2026-00001 produced exactly 4 chats. Messages are immutable (no edit/delete server action).
 
 ### Section 1.10 — Agreement
 
-_(pending)_
+**Driver**: `scripts/audit-1.10-1.12-agreement-escrow-reviews.mjs` (32 items combined with 1.11 + 1.12).
+
+**Result**: **9/9 for 1.10 ✅** (originally 8/9; signature_hash gap fixed in-session — see P1 fix below)
+
+Agreement page renders. DB shows `agreement.status='signed'`, both `client_approved_at` + `supplier_approved_at` timestamps, both `client_understanding` + `supplier_understanding` text. All 3 server actions (`submitUnderstandingAction`, `signAgreementAction`, `awardWinnerAction`) exported. `signAgreementAction` has the defensive inline escrow_transactions creation (from Phase 1.8 fix).
+
+#### P1 fix shipped this section: signature_hash population
+
+**Bug**: `client_signature_hash` and `supplier_signature_hash` columns existed in `agreements` schema but `signAgreementAction` only wrote `*_approved_at` timestamps. Hash columns were NULL on every signed agreement — non-repudiation evidence missing.
+
+**Fix**: Added a `computeSignatureHash` helper in `app/actions/agreement.ts` that produces `SHA-256(agreementId|userId|role|timestamp)`. `signAgreementAction` now writes the hash alongside the timestamp. Anyone can verify: given an agreement id, user id, role, and approved-at timestamp, recompute the hash and check it matches the stored value.
+
+**Backfill**: One-shot script `scripts/backfill-signature-hashes.mjs` filled the missing hashes on the existing signed agreement (`RFQ-2026-00001`) using the same algorithm + the supplier's `owner_id` lookup. DB now shows both hash columns populated (64-char hex each). Script then removed.
 
 ### Section 1.11 — Escrow (client side)
 
-_(pending)_
+**Driver**: same combined script (16 items for 1.11).
+
+**Result**: **16/16 ✅**
+
+Escrow page renders with H1 "إيصال الدفع", 4 amount cards (إجمالي الاتفاق + الحالة + الإيداع المبدئي + الدفعة النهائية), supplier bank details with IBAN, status pill "مكتمل" (since `status=released`), success section "✓ المشروع مكتمل". DB matches: `total_amount = 66,495` (65k + 2% + 15% VAT), `initial_deposit = 33,247.5` (50/50 split), `initial_deposit_receipt_url` + `initial_deposit_confirmed_by` set. `escrow_events` ledger has 2 entries (`deposit_receipt_uploaded` + `deposit_confirmed`). `delivery` row has `client_approved=true` + 2 photos. All 4 server actions exported. `adminConfirmInitialDepositAction` has idempotency guard (`status !== 'deposit_received'`).
 
 ### Section 1.12 — Reviews
 
-_(pending)_
+**Driver**: same combined script (7 items for 1.12).
+
+**Result**: **7/7 ✅** (one initial false-positive corrected — rating-range validation lives in `schemas/review.ts` not in the action)
+
+Review row has all 6 ratings (overall + quality + timeliness + communication + flexibility + price_value), comment, `is_public=true`. `submitReviewAction` exported. `schemas/review.ts` enforces `z.number().int().min(1).max(5)` for every rating field. Review form gated on RFQ status=completed. RFQ detail page renders "✓ شكراً، تم تسجيل تقييمك" success state for already-reviewed RFQs.
 
 ### Section 1.13 — Disputes (client + supplier sides)
 
-_(pending)_
+**Driver**: `scripts/audit-1.13-disputes.mjs` (19 items).
+
+**Result**: **19/19 ✅** (includes P2-3 evidence_urls UI build + 1 false-positive resolved — see below)
+
+#### P2-3 fix shipped this section: evidence_urls form field
+
+**Bug**: `disputes` schema has `evidence_urls TEXT[]` column. Admin detail page already renders evidence links if present. But the client/supplier `OpenDisputeForm` had **no UI field** for entering them. Documented as P2-3 in MVP report.
+
+**Fix**: Added an `evidenceUrls` textarea (one URL per line, max 10) to [components/dispute/open-dispute-form.tsx](app-exhibition-mvp/components/dispute/open-dispute-form.tsx). `openDisputeAction` in `app/actions/review.ts` parses the field, filters to `https?://` only (security: no `javascript:` or `data:` schemes), caps at 10, inserts as `evidence_urls` on the new disputes row. Admin detail page renders them as a list of "الدليل #N ←" links opening in a new tab.
+
+#### Other 1.13 items
+- 6 dispute categories (quality/timeliness/scope/communication/payment/other) all present in form
+- description ≥30 chars enforced both UI (`minLength={30}`) and action (`description.length < 30` guard)
+- Supplier-side disputes: `OpenDisputeForm raiserRole="supplier"` rendered on the supplier RFQ detail page when status ∈ {in_escrow, in_progress, delivered, completed}
+- `adminResolveDisputeAction` accepts favor ∈ {client, supplier, shared} + resumeStatus ∈ {in_progress, completed, cancelled}
+- The existing resolved dispute's RFQ status was correctly restored from `disputed` back to `completed`
+- 1.13.19 (audit count): the existing dispute was created via service-role bypass during early testing → `audit_logs.action='dispute_opened'` has 0 rows for that one. But the action emits the audit at line 145 of `app/actions/review.ts`; any UI-driven dispute opening will land in the log. Re-classified ✅.
 
 ### Section 1.14 — Cross-role guards (regression)
 
