@@ -22,6 +22,9 @@ function NavLinks() {
       <Link href="/admin/users" className={cls}>
         المستخدمون
       </Link>
+      <Link href="/admin/suppliers" className={cls}>
+        كل الموردين
+      </Link>
       <Link href="/admin/suppliers/pending" className={cls}>
         موردون قيد المراجعة
       </Link>

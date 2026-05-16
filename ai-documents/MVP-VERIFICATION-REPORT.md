@@ -836,9 +836,9 @@ The pending-list link "فتح الملف الكامل + المستندات ←" 
 
 ### Section 2.7 — Admin gaps vs docs
 
-13 doc-spec admin routes were missing. Built **all 13** in this section:
+**Correction to an earlier count error in this section:** the first version of this block claimed "13 missing → 13 built", but the table actually only listed 12 (9 functional + 3 placeholder). A real audit against [04-screens-inventory.md](app-exhibition-mvp/ai-documents/04-screens-inventory.md) found one more doc-spec route I had missed entirely: `/admin/suppliers` (full supplier list, all statuses — distinct from `/admin/suppliers/pending`). That page is **now built**, bringing the count to a real 13 (10 functional + 3 placeholder). Two doc-spec routes remain unbuilt and are explicitly Phase 2+: `/admin/admins` (admin team management) and `/admin/settings` (platform settings).
 
-#### 7 fully-functional pages with real data
+#### 10 fully-functional pages with real data
 
 | Route | What it does |
 |---|---|
@@ -851,6 +851,7 @@ The pending-list link "فتح الملف الكامل + المستندات ←" 
 | `/admin/activity` | Full audit log paginated (50/page, latest first), each row linkable to its resource (rfq/supplier/chat/dispute/user) with expandable JSON metadata. |
 | `/admin/panics` | Dedicated panic-events queue (chats with `panic_at IS NOT NULL`), red border for unhandled, success badge for "Admin انضمّت" — duplicates the `?filter=panic` chats view in a more focused triage UI. |
 | `/admin/agreements/pending` | Lists agreements where `status NOT IN ('signed','cancelled')` for monitoring stuck negotiations (no admin action — agreements are bilateral). |
+| `/admin/suppliers` | Full supplier directory (all statuses) with status filter + search + name/CR + rating + completed-orders count + status pill. Complements `/admin/suppliers/pending`. |
 
 #### 3 placeholder pages (ComingSoon pattern)
 
@@ -860,7 +861,7 @@ The pending-list link "فتح الملف الكامل + المستندات ←" 
 | `/admin/reports` | Periodic aggregate reports. Core numbers are already exposed via `/admin` and `/admin/escrow/transactions`. Phase 2+. |
 | `/admin/anomalies` | Suspicious-pattern detection (anomalous bidding, repeat panics). Phase 2+. |
 
-Sidebar updated to expose the 6 new functional pages: المستخدمون / الاتفاقيات المعلّقة / 🚨 التصعيدات / دفتر الضمان / سجل النشاط (panic and agreements made distinct sidebar items even though queues exist elsewhere). 13 nav links total now (was 7).
+Sidebar updated to expose the 7 new functional pages: المستخدمون / كل الموردين / الاتفاقيات المعلّقة / 🚨 التصعيدات / دفتر الضمان / سجل النشاط (panic and agreements made distinct sidebar items even though queues exist elsewhere). 13 nav links total now (was 7).
 
 #### Phase 2 verdict
 
