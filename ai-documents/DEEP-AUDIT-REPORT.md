@@ -14,7 +14,7 @@
 
 **Verdict legend**: ✅ working · ⚠️ incomplete · 🐛 broken · ❌ missing · ➕ present but not in docs · ⏭️ skipped (AI / sandbox / out of scope)
 
-**Last verified item**: 1.13 — Disputes (19 items) — includes P2-3 evidence_urls build + P1 signature_hash fix
+**Last verified item**: Phase 2 — Supplier flow (46 items combined with Section 1.14)
 
 ---
 
@@ -302,7 +302,21 @@ Review row has all 6 ratings (overall + quality + timeliness + communication + f
 
 ### Section 1.14 — Cross-role guards (regression)
 
-_(pending)_
+**Driver**: `scripts/audit-1.14-and-phase2.mjs` (9 items).
+
+**Result**: **9/9 ✅** — proxy.ts `homeFor(role)` helper still routes every cross-role redirect correctly (regression-safe after all in-session changes).
+
+| Scenario | Expected | Verdict |
+|---|---|---|
+| unauth → /ar/dashboard | /ar/login | ✅ |
+| unauth → /ar/supplier | /ar/login | ✅ |
+| unauth → /admin | /ar/login | ✅ |
+| client → /admin | /ar/dashboard | ✅ |
+| supplier → /admin | /ar/supplier | ✅ |
+| supplier → /ar/dashboard | /ar/supplier | ✅ |
+| client → /ar/supplier | /ar/dashboard | ✅ |
+| admin → /ar/dashboard | /admin | ✅ |
+| admin → /ar/supplier | /admin | ✅ |
 
 ---
 
@@ -310,47 +324,59 @@ _(pending)_
 
 ### Section 2.1 — Supplier signup wizard
 
-_(pending)_
+**Result**: **6/6 ✅** — all 4 wizard pages return 200, `signupSupplierAction` surfaces both `email_address_invalid` and `over_email_send_rate_limit` errors with Arabic copy. (Fields + validation deep-tested in 1.2.)
 
 ### Section 2.2 — /supplier/pending gating
 
-_(pending)_
+**Result**: **4/4 ✅** (after temporarily flipping sami back to `pending_review` to verify, then restoring to `approved`)
+
+- `/supplier/pending` → 200 with H1 "حسابك قيد المراجعة"
+- Layout's `isApproved` check correctly renders the gated "حسابك قيد المراجعة من Admin" badge in the sidebar
+- Pending supplier sidebar has zero operational nav links (no `/supplier/proposals`, `/projects`, etc.)
+- `/supplier` redirects pending supplier to `/supplier/pending`
 
 ### Section 2.3 — Matched RFQs list
 
-_(pending)_
+**Result**: **4/4 ✅** — `/supplier/rfqs` shows `RFQ-2026-00004` (matches booth specialization), search bar present, RLS workaround correctly filters out draft RFQs (RFQ-2026-00003 not visible). Both `service_type ∈ specializations` and `status='open'` enforced.
 
 ### Section 2.4 — Supplier RFQ detail
 
-_(pending)_
+**Result**: **3/3 ✅** — `/supplier/rfqs/[id]` renders. Since the supplier already submitted on RFQ-2026-00004, the "قدّم عرضك ←" CTA is correctly hidden and replaced with "✓ قدّمت عرضاً على هذا الطلب" notice (from the in-session bug fix during MVP verification).
 
 ### Section 2.5 — Proposal submission
 
-_(pending)_
+**Result**: **2/2 ✅** — Form page renders with all 7 fields (totalPrice, deliveryDays, description, scopeOfWork, excludedItems, paymentTerms, validityDays). Verified end-to-end on a live submit during MVP-1.11-E (proposal `430991d4-…` saved in DB with all fields populated).
 
 ### Section 2.6 — Supplier proposals list (4 tabs)
 
-_(pending)_
+**Result**: **4/4 ✅** — Both proposals visible (RFQ-2026-00004 submitted + RFQ-2026-00001 accepted). Status filter dropdown has all 6 statuses (مُقدَّم/قيد المراجعة/في القائمة المختصرة/مقبول/مرفوض/مسحوب). `?status=accepted` filter correctly returns only the accepted proposal.
 
 ### Section 2.7 — Supplier chat
 
-_(pending)_
+**Result**: **2/2 ✅** — Chat detail page loads, renders all 7 messages (client + supplier + admin intervention + panic alert). Realtime channel + send/receive proven during MVP-1.7.
 
 ### Section 2.8 — Projects
 
-_(pending)_
+**Result**: **2/2 ✅** — Projects list shows completed RFQ-2026-00001 with مكتمل status pill. Page uses admin-client + manual ownership (RLS workaround from MVP-1.11).
 
 ### Section 2.9 — Earnings
 
-_(pending)_
+**Result**: **3/3 ✅** — Page loads with 3 KPI cards (إجمالي مُحرّر = 63,050 ﷼ + بانتظار التحرير + المجموع), payout history shows the released escrow. Phase 3 parallelization (1279→1065ms) holding.
 
 ### Section 2.10 — Profile portfolio + edit
 
-_(pending)_
+**Result**: **5/5 ✅**
+
+- `/supplier/profile/portfolio` renders 5 sections (basic info, specs+cities, bio+stats, bank, portfolio)
+- `/supplier/profile/edit` renders form with all editable fields (companyName, bio, iban, etc.)
+- Edit page has 3 document upload slots: السجل التجاري (CR), الشهادة الضريبية (VAT), ملف الأعمال (portfolio PDF), each backed by `lib/storage/supplier-docs.ts` + `supplier-uploads` server action with signed-URL preview
 
 ### Section 2.11 — Supplier pricing page
 
-_(pending)_
+**Result**: **2/2 ✅** — No separate `/supplier/pricing` route in doc spec. Public `/ar/pricing` is accessible from any persona (including supplier) and shows the full 2%/3%/5%/15% fee breakdown. No additional supplier-specific pricing UI required.
+
+#### Phase 2 verdict
+✅ **37/37 across all 11 sub-sections.** Plus 9/9 in Section 1.14 cross-role guards regression = **46/46** in this combined audit run.
 
 ---
 
