@@ -14,7 +14,7 @@
 
 **Verdict legend**: ✅ working · ⚠️ incomplete · 🐛 broken · ❌ missing · ➕ present but not in docs · ⏭️ skipped (AI / sandbox / out of scope)
 
-**Last verified item**: 1.2 — Authentication (54 items)
+**Last verified item**: 1.3 — Client dashboard (27 items)
 
 ---
 
@@ -150,7 +150,35 @@ Each rule emits an Arabic error message (e.g., "بريد إلكتروني غير
 
 ### Section 1.3 — Client dashboard
 
-_(pending)_
+**Driver**: `scripts/audit-1.3-client-dashboard.mjs` (27 items).
+
+**Result**: **27/27 ✅**
+
+| # | Item | Verdict |
+|---|---|---|
+| 1.3.1 | `/ar/dashboard` → 200 | ✅ |
+| 1.3.2 | H1 reads "أهلاً بك" | ✅ |
+| 1.3.3 | Primary CTA to `/dashboard/rfqs/new` | ✅ |
+| 1.3.4 | 4 KPI labels render in Arabic (active / proposals / execution / completed) | ✅ |
+| 1.3.5 | Recent RFQs widget shows existing `RFQ-2026-00001` | ✅ |
+| 1.3.6–10 | Sidebar nav: لوحة التحكم / طلباتي / اكتشف الموردين / الإعدادات / تسجيل الخروج | ✅ |
+| 1.3.11 | HeaderBar has notification bell with `aria-label="الإشعارات"` | ✅ |
+| 1.3.12 | Suggested suppliers section shows top-4 approved | ✅ |
+| 1.3.13 | Upcoming exhibitions placeholder (LEAP / Cityscape / GITEX) | ✅ |
+| 1.3.14–17 | `/ar/dashboard/rfqs` list page: 200, H1, rows, status filter present | ✅ |
+| 1.3.18–19 | `/ar/dashboard/notifications`: 200 + H1 | ✅ |
+| 1.3.20–21 | Settings: /profile + /company both 200 | ✅ |
+| 1.3.22–24 | Onboarding × 3: welcome / exhibition / recommendations → 200 | ✅ |
+| 1.3.25–26 | Notification server actions exported (getRecentNotificationsAction + markNotificationsReadAction) | ✅ |
+| 1.3.27 | Notifications table queryable for client | ✅ |
+
+#### Notes
+- The notification bell uses Supabase **Realtime** on `postgres_changes` for `notifications` table filtered by `user_id` — verified by reading [components/header/notification-bell.tsx:50–60](app-exhibition-mvp/components/header/notification-bell.tsx).
+- Suggested suppliers query is a placeholder (top 4 by `total_completed_orders`); not yet matched by client industry/city. Documented in code comment; not a P2 bug per `04-screens-inventory.md` which lists only "5 supplier cards" without a matching algorithm spec.
+- Dashboard renders 4 KPI cards correctly with **3** RFQs in the test client's data (KPI shows 0 active, 0 pending, 0 in-execution, 1 completed — since RFQ-2026-00001 is completed and RFQ-2026-00003 is draft and RFQ-2026-00004 is open). Math checks out.
+
+#### Section 1.3 verdict
+✅ **27/27** Client dashboard is fully populated with real data: KPI cards math correct, recent RFQs widget queries client's own rows, suggested suppliers from approved pool, sidebar + header chrome + notification realtime subscription all wired.
 
 ### Section 1.4 — Client settings (profile + company)
 
