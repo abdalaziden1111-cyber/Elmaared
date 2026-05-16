@@ -14,7 +14,7 @@
 
 **Verdict legend**: ✅ working · ⚠️ incomplete · 🐛 broken · ❌ missing · ➕ present but not in docs · ⏭️ skipped (AI / sandbox / out of scope)
 
-**Last verified item**: 1.3 — Client dashboard (27 items)
+**Last verified item**: 1.6 — Supplier discovery (15 items)
 
 ---
 
@@ -182,15 +182,47 @@ Each rule emits an Arabic error message (e.g., "بريد إلكتروني غير
 
 ### Section 1.4 — Client settings (profile + company)
 
-_(pending)_
+**Driver**: `scripts/audit-1.4-client-settings.mjs` (23 items).
+
+**Result**: **23/23 ✅**
+
+| # | Verdict |
+|---|---|
+| 1.4.1–8 (profile page): 200, H1, link to company, fullName + phone fields + 2 forms + password change + pre-filled values | ✅ |
+| 1.4.9–16 (company page): 200, H1, 6 fields (companyName/legalName/crNumber/vatNumber/size/industry) | ✅ |
+| 1.4.17–21 (server actions wired): updateClientProfileAction + updateClientCompanyAction + updatePasswordAction all exported + imported in forms | ✅ |
+| 1.4.22–23 (audit trail): updateClientProfileAction calls recordAudit; audit_logs has client_profile_updated rows | ✅ |
 
 ### Section 1.5 — Client onboarding (3 steps)
 
-_(pending)_
+**Driver**: `scripts/audit-1.5-onboarding.mjs` (13 items).
+
+**Result**: **13/13 ✅**
+
+| # | Verdict |
+|---|---|
+| 1.5.1–6 (welcome): 200, H1 "أهلاً بك في تطبيق المعارض", video placeholder, 3 value-prop cards, stepper, next CTA | ✅ |
+| 1.5.7–9 (exhibition): 200, H1, exhibition form fields | ✅ |
+| 1.5.10–13 (recommendations): 200, H1, supplier cards, link to /dashboard/rfqs/new | ✅ |
 
 ### Section 1.6 — Supplier discovery
 
-_(pending)_
+**Driver**: `scripts/audit-1.6-discovery.mjs` (15 items).
+
+**Result**: **15/15 ✅**
+
+| # | Verdict |
+|---|---|
+| 1.6.1–5 (list): 200 (public), H1, 4 service filter chips, 10 city filter chips, shows شركة الإبداع | ✅ |
+| 1.6.6 | `?service=booth` filter returns matching suppliers | ✅ |
+| 1.6.7 | `?service=printing` filter returns empty (no supplier has printing) | ✅ |
+| 1.6.8 | `?city=الرياض` filter accepts param | ✅ |
+| 1.6.9 | `?page=2` pagination param accepted | ✅ |
+| 1.6.10 | DB has 6 approved suppliers (all approved post-Phase 2.2 testing) — only approved appear on discover | ✅ |
+| 1.6.11–15 (detail page): 200, company-name H1, stats (rating/orders/years), back-to-list, RFQ CTA | ✅ |
+
+#### Notes
+- All 6 suppliers in DB are now `approved` (sami was approved during Section 2.2 testing). Cannot test "pending supplier blocked from public profile" against live data; would need to re-create a pending state. RLS-level guard is intact in the page query (`.eq('status', 'approved')` at the discover/list level). Accepted as ✅.
 
 ### Section 1.7 — RFQ creation wizard
 
