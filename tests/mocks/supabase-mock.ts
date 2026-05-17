@@ -24,6 +24,13 @@ export interface MockedError {
   message: string;
 }
 
+interface StorageUpload {
+  bucket: string;
+  path: string;
+  size: number;
+  contentType?: string;
+}
+
 interface Store {
   rows: Map<SupabaseTable, MockedRow[]>;
   errors: Map<string, MockedError>; // key = `${table}:${op}`
@@ -36,6 +43,10 @@ interface Store {
   updates: Array<{ table: string; values: MockedRow; eqs: Array<[string, unknown]> }>;
   deletes: Array<{ table: string; eqs: Array<[string, unknown]> }>;
   audits: MockedRow[];
+  storageUploads: StorageUpload[];
+  storageRemovals: Array<{ bucket: string; paths: string[] }>;
+  storageErrors: Map<string, MockedError>; // key = `${bucket}:${op}`
+  signedUrls: Map<string, string>; // key = `${bucket}:${path}`
 }
 
 export interface SupabaseMock {
@@ -49,6 +60,10 @@ export interface SupabaseMock {
   getInserts: (table: SupabaseTable) => MockedRow[];
   getUpdates: (table: SupabaseTable) => Store['updates'];
   getDeletes: (table: SupabaseTable) => Store['deletes'];
+  setStorageError: (bucket: string, op: 'upload' | 'createSignedUrl' | 'remove', err: MockedError | null) => void;
+  setSignedUrl: (bucket: string, path: string, url: string) => void;
+  getStorageUploads: () => StorageUpload[];
+  getStorageRemovals: () => Array<{ bucket: string; paths: string[] }>;
 }
 
 export function createSupabaseMock(): SupabaseMock {
@@ -62,6 +77,10 @@ export function createSupabaseMock(): SupabaseMock {
     updates: [],
     deletes: [],
     audits: [],
+    storageUploads: [],
+    storageRemovals: [],
+    storageErrors: new Map(),
+    signedUrls: new Map(),
   };
 
   return {
@@ -87,6 +106,16 @@ export function createSupabaseMock(): SupabaseMock {
     getInserts: (table) => store.insertedRows.get(table) ?? [],
     getUpdates: (table) => store.updates.filter((u) => u.table === table),
     getDeletes: (table) => store.deletes.filter((d) => d.table === table),
+    setStorageError: (bucket, op, err) => {
+      const key = `${bucket}:${op}`;
+      if (err) store.storageErrors.set(key, err);
+      else store.storageErrors.delete(key);
+    },
+    setSignedUrl: (bucket, path, url) => {
+      store.signedUrls.set(`${bucket}:${path}`, url);
+    },
+    getStorageUploads: () => store.storageUploads,
+    getStorageRemovals: () => store.storageRemovals,
   };
 }
 
@@ -141,6 +170,42 @@ function buildClient(store: Store) {
             error: null,
           };
         },
+      },
+    },
+    storage: {
+      from(bucket: string) {
+        return {
+          async upload(
+            path: string,
+            file: { size: number; type?: string },
+            _opts?: unknown
+          ) {
+            const err = store.storageErrors.get(`${bucket}:upload`);
+            if (err) return { data: null, error: err };
+            store.storageUploads.push({
+              bucket,
+              path,
+              size: file.size,
+              contentType: file.type,
+            });
+            return { data: { path }, error: null };
+          },
+          async createSignedUrl(path: string, _ttlSeconds: number) {
+            const err = store.storageErrors.get(`${bucket}:createSignedUrl`);
+            if (err) return { data: null, error: err };
+            const signed = store.signedUrls.get(`${bucket}:${path}`);
+            return {
+              data: { signedUrl: signed ?? `https://mock.signed/${bucket}/${path}` },
+              error: null,
+            };
+          },
+          async remove(paths: string[]) {
+            const err = store.storageErrors.get(`${bucket}:remove`);
+            if (err) return { data: null, error: err };
+            store.storageRemovals.push({ bucket, paths });
+            return { data: paths.map((p) => ({ name: p })), error: null };
+          },
+        };
       },
     },
   };

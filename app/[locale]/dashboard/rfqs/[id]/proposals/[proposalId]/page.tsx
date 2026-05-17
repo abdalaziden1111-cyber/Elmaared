@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 
 interface ProposalDetail {
   id: string;
@@ -61,6 +62,15 @@ export default async function ClientProposalDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl">
+      <Breadcrumbs
+        items={[
+          { href: '/dashboard', label: 'لوحة التحكم' },
+          { href: '/dashboard/rfqs', label: 'طلباتي' },
+          { href: `/dashboard/rfqs/${rfqId}`, label: 'الطلب' },
+          { href: `/dashboard/rfqs/${rfqId}/compare`, label: 'العروض' },
+          { label: p.supplier?.company_name ?? 'مورد' },
+        ]}
+      />
       <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">
         {p.supplier?.company_name ?? 'مورد'}
       </h1>

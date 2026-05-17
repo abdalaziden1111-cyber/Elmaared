@@ -32,6 +32,9 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 .playwright/
+playwright-report/
+test-results/
+tests/e2e/.auth/
 
 # Vercel
 .vercel/
@@ -43,3 +46,4 @@ supabase/.temp/
 # Misc
 *.tsbuildinfo
 next-env.d.ts
+.vercel

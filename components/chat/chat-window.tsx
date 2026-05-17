@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { sendMessageAction } from '@/app/actions/chat';
 import { cn } from '@/lib/utils/cn';
+import { timeAgo } from '@/lib/utils/format';
 import { Loader2, Send, WifiOff } from 'lucide-react';
+import { PanicButton } from './panic-button';
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +25,8 @@ interface ChatWindowProps {
   currentUserId: string;
   currentRole: 'admin' | 'client' | 'supplier';
   initialMessages: ChatMessage[];
+  /** Whether the chat has already been panic-flagged. Hides the escalation button when true. */
+  alreadyEscalated?: boolean;
 }
 
 type RealtimeStatus = 'connecting' | 'connected' | 'reconnecting' | 'offline';
@@ -35,6 +39,7 @@ export function ChatWindow({
   currentUserId,
   currentRole,
   initialMessages,
+  alreadyEscalated = false,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState('');
@@ -213,6 +218,12 @@ export function ChatWindow({
         )}
       </div>
 
+      {currentRole !== 'admin' ? (
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--color-stone-200)] bg-white px-3 py-2">
+          <PanicButton chatId={chatId} alreadyEscalated={alreadyEscalated} />
+        </div>
+      ) : null}
+
       <form
         onSubmit={handleSend}
         className="flex gap-2 border-t border-[var(--color-stone-200)] bg-[var(--color-cream)] p-3"
@@ -268,6 +279,14 @@ function MessageBubble({ message, mine }: { message: ChatMessage; mine: boolean 
         </div>
       ) : null}
       <div className="whitespace-pre-line">{message.content}</div>
+      <div
+        className={cn(
+          'mt-1 text-[10px]',
+          mine ? 'text-[var(--color-cream)]/70' : 'text-[var(--color-stone-600)]'
+        )}
+      >
+        {timeAgo(message.created_at)}
+      </div>
     </li>
   );
 }

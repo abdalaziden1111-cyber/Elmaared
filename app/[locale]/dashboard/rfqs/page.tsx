@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort } from '@/lib/utils/format';
+import { RFQ_STATUS_LABEL as STATUS_LABEL } from '@/lib/constants/labels';
 import { SearchBar } from '@/components/ui/search-bar';
 import { StatusFilter } from '@/components/ui/status-filter';
 import { Pagination } from '@/components/ui/pagination';
@@ -16,19 +17,6 @@ interface RfqRow {
   created_at: string;
   proposals_deadline: string | null;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'مسودة',
-  open: 'مفتوح',
-  negotiating: 'قيد التفاوض',
-  awarded: 'تم الاختيار',
-  in_escrow: 'قيد الضمان',
-  in_progress: 'قيد التنفيذ',
-  delivered: 'تم التسليم',
-  completed: 'مكتمل',
-  disputed: 'نزاع',
-  cancelled: 'ملغى',
-};
 
 const PAGE_SIZE = 20;
 

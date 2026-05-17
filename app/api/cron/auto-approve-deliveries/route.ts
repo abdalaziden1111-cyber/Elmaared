@@ -37,10 +37,17 @@ export async function GET(request: Request) {
     })
     .in('id', ids);
 
+  // MVP evidence-only mode: mirror approveDeliveryAction — close the project
+  // directly instead of running the final-payment + admin-payout cycle.
   await admin
     .from('escrow_transactions')
-    .update({ status: 'final_payment' })
+    .update({ status: 'released' })
     .in('rfq_id', rfqIds);
+
+  await admin
+    .from('rfqs')
+    .update({ status: 'completed' })
+    .in('id', rfqIds);
 
   return NextResponse.json({ approved: ids.length });
 }

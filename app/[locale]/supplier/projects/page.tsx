@@ -2,6 +2,7 @@ import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort } from '@/lib/utils/format';
+import { CITY_LABEL } from '@/lib/constants/labels';
 import { StatusFilter } from '@/components/ui/status-filter';
 import { Pagination } from '@/components/ui/pagination';
 
@@ -150,7 +151,9 @@ export default async function SupplierProjectsPage({
                       <div className="text-xs text-[var(--color-stone-600)] num">{r.rfq_number}</div>
                       <h2 className="mt-0.5 text-base font-semibold">{r.title}</h2>
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--color-stone-600)]">
-                        {r.exhibition_city ? <span>{r.exhibition_city}</span> : null}
+                        {r.exhibition_city ? (
+                          <span>{CITY_LABEL[r.exhibition_city] ?? r.exhibition_city}</span>
+                        ) : null}
                         {r.awarded_at ? (
                           <span>· تم الاختيار {formatDateShort(r.awarded_at)}</span>
                         ) : null}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import Link from 'next/link';
+import { Link } from '@/lib/i18n/routing';
 import { loginAction, type ActionResult } from '@/app/actions/auth';
 import { FormField } from '@/components/ui/form-field';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -22,7 +22,7 @@ export default function LoginPage() {
           أدخل بريدك وكلمة المرور للوصول إلى حسابك.
         </p>
 
-        <form action={formAction} className="mt-6 flex flex-col gap-4">
+        <form noValidate action={formAction} className="mt-6 flex flex-col gap-4">
           <FormField
             type="email"
             name="email"

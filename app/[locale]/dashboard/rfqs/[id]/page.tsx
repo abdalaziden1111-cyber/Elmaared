@@ -1,7 +1,15 @@
 import { notFound } from 'next/navigation';
+import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
+import {
+  RFQ_STATUS_LABEL as STATUS_LABEL,
+  SERVICE_LABEL,
+  CITY_LABEL,
+  RFQ_FIELD_LABEL as FIELD_LABEL,
+  formatRfqDetailValue,
+} from '@/lib/constants/labels';
 import { PublishButton } from './publish-button';
 import { ReviewForm } from './review-form';
 import { OpenDisputeForm } from '@/components/dispute/open-dispute-form';
@@ -23,18 +31,6 @@ interface RfqDetail {
   client_id: string;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'مسودة',
-  open: 'مفتوح',
-  negotiating: 'قيد التفاوض',
-  awarded: 'تم الاختيار',
-  in_escrow: 'قيد الضمان',
-  in_progress: 'قيد التنفيذ',
-  delivered: 'تم التسليم',
-  completed: 'مكتمل',
-  disputed: 'نزاع',
-  cancelled: 'ملغى',
-};
 
 // RFQ statuses where the client can still raise a dispute. Pre-award and
 // terminal statuses don't allow dispute creation.
@@ -43,6 +39,17 @@ const DISPUTABLE_STATUSES = new Set([
   'in_progress',
   'delivered',
   'completed',
+]);
+
+// RFQ statuses where an award has been made — show the post-award summary
+// card with links to escrow, chat, and the awarded supplier.
+const AWARDED_STATUSES = new Set([
+  'awarded',
+  'in_escrow',
+  'in_progress',
+  'delivered',
+  'completed',
+  'disputed',
 ]);
 
 export default async function ClientRfqDetailPage({
@@ -80,6 +87,45 @@ export default async function ClientRfqDetailPage({
     alreadyReviewed = (count ?? 0) > 0;
   }
 
+  // Post-award summary: awarded supplier + final price + chat thread.
+  let awardedInfo: {
+    supplierId: string;
+    supplierName: string;
+    totalPrice: number;
+    chatId: string | null;
+  } | null = null;
+  if (AWARDED_STATUSES.has(rfq.status)) {
+    const { data: propRaw } = await admin
+      .from('proposals')
+      .select(
+        'id, total_price, supplier:suppliers (id, company_name)'
+      )
+      .eq('rfq_id', rfq.id)
+      .eq('status', 'accepted')
+      .maybeSingle();
+    const prop = propRaw as unknown as
+      | {
+          id: string;
+          total_price: number;
+          supplier: { id: string; company_name: string } | null;
+        }
+      | null;
+    if (prop?.supplier) {
+      const { data: chatRaw } = await admin
+        .from('chats')
+        .select('id')
+        .eq('rfq_id', rfq.id)
+        .eq('supplier_id', prop.supplier.id)
+        .maybeSingle();
+      awardedInfo = {
+        supplierId: prop.supplier.id,
+        supplierName: prop.supplier.company_name,
+        totalPrice: prop.total_price,
+        chatId: (chatRaw as { id: string } | null)?.id ?? null,
+      };
+    }
+  }
+
   // Dispute is allowed at any post-award state except terminal ones.
   const canRaiseDispute = DISPUTABLE_STATUSES.has(rfq.status);
   const isDisputed = rfq.status === 'disputed';
@@ -98,9 +144,50 @@ export default async function ClientRfqDetailPage({
         </span>
       </div>
 
+      {awardedInfo ? (
+        <aside className="mt-6 rounded-2xl border border-[var(--color-success-100)] bg-[var(--color-success-100)]/40 p-5">
+          <p className="text-xs font-medium text-[var(--color-success)]">المورد المختار</p>
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+            <Link
+              href={`/discover/${awardedInfo.supplierId}`}
+              className="text-lg font-semibold text-[var(--color-midnight-green)] hover:underline"
+            >
+              {awardedInfo.supplierName}
+            </Link>
+            <span className="text-base font-semibold text-[var(--color-midnight-green)] num">
+              {formatCurrency(awardedInfo.totalPrice)}
+            </span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            <Link
+              href={`/dashboard/rfqs/${rfq.id}/escrow`}
+              className="font-medium text-[var(--color-action-blue)] hover:underline"
+            >
+              الضمان ←
+            </Link>
+            <Link
+              href={`/dashboard/rfqs/${rfq.id}/agreement`}
+              className="font-medium text-[var(--color-action-blue)] hover:underline"
+            >
+              الاتفاقية ←
+            </Link>
+            {awardedInfo.chatId ? (
+              <Link
+                href={`/dashboard/rfqs/${rfq.id}/chats/${awardedInfo.chatId}`}
+                className="font-medium text-[var(--color-action-blue)] hover:underline"
+              >
+                المحادثة مع المورد ←
+              </Link>
+            ) : null}
+          </div>
+        </aside>
+      ) : null}
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Field label="نوع الخدمة" value={rfq.service_type} />
-        {rfq.exhibition_city ? <Field label="المدينة" value={rfq.exhibition_city} /> : null}
+        <Field label="نوع الخدمة" value={SERVICE_LABEL[rfq.service_type] ?? rfq.service_type} />
+        {rfq.exhibition_city ? (
+          <Field label="المدينة" value={CITY_LABEL[rfq.exhibition_city] ?? rfq.exhibition_city} />
+        ) : null}
         {rfq.exhibition_date ? (
           <Field label="تاريخ المعرض" value={formatDate(rfq.exhibition_date)} />
         ) : null}
@@ -129,8 +216,8 @@ export default async function ClientRfqDetailPage({
         <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           {Object.entries(rfq.details).map(([k, v]) => (
             <li key={k} className="flex justify-between rounded-lg bg-white p-3">
-              <span className="text-[var(--color-stone-600)]">{k}</span>
-              <span className="font-medium">{String(v)}</span>
+              <span className="text-[var(--color-stone-600)]">{FIELD_LABEL[k] ?? k}</span>
+              <span className="font-medium">{formatRfqDetailValue(k, v, formatDate)}</span>
             </li>
           ))}
         </ul>

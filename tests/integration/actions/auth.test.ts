@@ -26,6 +26,9 @@ vi.mock('next/cache', () => ({
 vi.mock('next/server', () => ({
   after: (fn: () => Promise<void> | void) => Promise.resolve().then(() => fn()),
 }));
+vi.mock('next-intl/server', () => ({
+  getLocale: () => Promise.resolve('ar'),
+}));
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock.client),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { useSignupSupplierStore } from '@/stores/signup-supplier-store';
 import { WizardStepper } from '@/components/ui/wizard-stepper';
 import { SERVICE_TYPES } from '@/lib/constants/service-types';
@@ -34,7 +34,7 @@ export default function SupplierSpecializationsStepPage() {
         اختر تخصصاتك والمدن التي تخدمها لنوصلك بالطلبات المناسبة فقط.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-8">
+      <form noValidate onSubmit={handleSubmit} className="mt-8 flex flex-col gap-8">
         <div>
           <h2 className="text-base font-medium">التخصصات</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

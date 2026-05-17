@@ -17,6 +17,9 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('next/server', () => ({
   after: (fn: () => Promise<void> | void) => Promise.resolve().then(() => fn()),
 }));
+vi.mock('next-intl/server', () => ({
+  getLocale: () => Promise.resolve('ar'),
+}));
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => Promise.resolve(supabaseMock.client),
 }));
@@ -106,15 +109,15 @@ describe('updatePasswordAction', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       const d = result.data as { redirectTo?: string } | undefined;
-      expect(d?.redirectTo).toBe('/login');
+      expect(d?.redirectTo).toBe('/ar/login');
     }
   });
 });
 
 describe('logoutAction', () => {
-  it('throws redirect to /login (Next.js navigation pattern)', async () => {
+  it('throws redirect to locale-aware /login (Next.js navigation pattern)', async () => {
     supabaseMock.setUser({ id: 'usr-1' });
     const { logoutAction } = await import('@/app/actions/auth');
-    await expect(logoutAction()).rejects.toThrow(/__REDIRECT__:\/login/);
+    await expect(logoutAction()).rejects.toThrow(/__REDIRECT__:\/ar\/login/);
   });
 });

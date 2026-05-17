@@ -52,3 +52,47 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-anon-key
           SUPABASE_SERVICE_ROLE_KEY: stub-service-role
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+  e2e-smoke:
+    name: E2E route smoke
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # @needs-db specs require a seeded Supabase; in CI we skip them and
+      # only run the route-smoke spec which exercises every route's auth
+      # gate against the live build. Add a "preview-e2e" job later that
+      # targets a staging URL with seeded data.
+      - name: Run route-smoke E2E
+        run: pnpm exec playwright test --grep-invert "@needs-db" --project=chromium
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: stub-service-role
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

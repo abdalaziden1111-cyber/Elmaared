@@ -18,7 +18,7 @@ const ALL_TYPES: BuildNotificationArgs[] = [
   { type: 'delivery_pending', rfqNumber: 'RFQ-1', rfqId: 'r1' },
   { type: 'delivery_approved', rfqNumber: 'RFQ-1', rfqId: 'r1' },
   { type: 'panic_button', rfqNumber: 'RFQ-1', chatId: 'c1', reason: 'urgent' },
-  { type: 'message', senderName: 'Sara', chatId: 'c1', preview: 'hello' },
+  { type: 'message', senderName: 'Sara', rfqId: 'r1', chatId: 'c1', preview: 'hello' },
   { type: 'system', title: 'maintenance', body: 'down for 5 min' },
 ];
 
@@ -77,6 +77,7 @@ describe('buildNotification — message preview truncation', () => {
     const out = buildNotification({
       type: 'message',
       senderName: 'Sara',
+      rfqId: 'r1',
       chatId: 'c1',
       preview: long,
     });
@@ -88,6 +89,7 @@ describe('buildNotification — message preview truncation', () => {
     const out = buildNotification({
       type: 'message',
       senderName: 'Sara',
+      rfqId: 'r1',
       chatId: 'c1',
       preview: 'مرحباً',
     });
@@ -107,14 +109,14 @@ describe('buildNotification — panic button', () => {
     expect((out.body ?? '').length).toBeLessThanOrEqual(127); // body = "RFQ-1: " + truncated 120
   });
 
-  it('points to admin chat link', () => {
+  it('points to admin dashboard', () => {
     const out = buildNotification({
       type: 'panic_button',
       rfqNumber: 'RFQ-1',
       chatId: 'c1',
       reason: 'urgent',
     });
-    expect(out.link).toContain('/admin/chat/c1');
+    expect(out.link).toMatch(/\/admin$/);
   });
 });
 
@@ -123,5 +125,45 @@ describe('notificationTypeOf', () => {
     for (const args of ALL_TYPES) {
       expect(notificationTypeOf(args)).toBe(args.type);
     }
+  });
+});
+
+describe('buildNotification — recipient locale routing', () => {
+  it('defaults to /ar prefix when no locale passed', () => {
+    const out = buildNotification({
+      type: 'rfq_match',
+      rfqNumber: 'RFQ-1',
+      rfqTitle: 'X',
+      rfqId: 'r1',
+    });
+    expect(out.link).toMatch(/\/ar\/supplier\/rfqs\/r1$/);
+  });
+
+  it('uses /en prefix when recipient locale is en', () => {
+    const out = buildNotification(
+      { type: 'rfq_match', rfqNumber: 'RFQ-1', rfqTitle: 'X', rfqId: 'r1' },
+      'en'
+    );
+    expect(out.link).toMatch(/\/en\/supplier\/rfqs\/r1$/);
+  });
+
+  it('falls back to /ar when locale is null/undefined/garbage', () => {
+    for (const bad of [null, undefined, '', 'fr', 'es']) {
+      const out = buildNotification(
+        { type: 'rfq_match', rfqNumber: 'RFQ-1', rfqTitle: 'X', rfqId: 'r1' },
+        bad
+      );
+      expect(out.link).toMatch(/\/ar\//);
+    }
+  });
+
+  it('admin links never get a locale prefix (admin is locale-less)', () => {
+    const out = buildNotification(
+      { type: 'panic_button', rfqNumber: 'RFQ-1', chatId: 'c1', reason: 'urgent' },
+      'en'
+    );
+    expect(out.link).toMatch(/\/admin$/);
+    expect(out.link).not.toMatch(/\/en\//);
+    expect(out.link).not.toMatch(/\/ar\//);
   });
 });

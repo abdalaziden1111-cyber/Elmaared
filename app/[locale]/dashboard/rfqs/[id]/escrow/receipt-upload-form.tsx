@@ -27,7 +27,7 @@ export function ReceiptUploadForm({
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form noValidate action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="escrowId" value={escrowId} />
       <FormField
         label="رابط إيصال التحويل البنكي"
@@ -36,8 +36,9 @@ export function ReceiptUploadForm({
         placeholder="https://..."
         required
         hint="الصق رابطاً عاماً (مثل Drive أو Dropbox) أو رابط الصورة من البنك"
+        error={state && !state.ok ? state.fieldErrors?.receiptUrl?.[0] : undefined}
       />
-      {state && !state.ok ? (
+      {state && !state.ok && !state.fieldErrors ? (
         <p className="text-sm text-[var(--color-danger)]">{state.error}</p>
       ) : null}
       <SubmitButton>أرسل الإيصال للتأكيد</SubmitButton>

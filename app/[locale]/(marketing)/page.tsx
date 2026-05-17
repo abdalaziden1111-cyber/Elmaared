@@ -1,48 +1,19 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n/routing';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  SERVICE_LABEL_LONG as SERVICE_LABEL_AR,
+  CITY_LABEL as CITY_LABEL_AR,
+  CITY_LABEL_EN,
+} from '@/lib/constants/labels';
 
-const FEATURED_SUPPLIERS = [
-  {
-    name: 'شركة الإبداع للمعارض',
-    nameEn: 'Al-Ibdaa Exhibitions',
-    serviceAr: 'تصميم وتنفيذ أجنحة',
-    serviceEn: 'Booth Design & Build',
-    citiesAr: 'الرياض · جدة',
-    citiesEn: 'Riyadh · Jeddah',
-    orders: 47,
-    years: 11,
-  },
-  {
-    name: 'هدايا ترويجية برو',
-    nameEn: 'Promo Gifts Pro',
-    serviceAr: 'هدايا ترويجية',
-    serviceEn: 'Promotional Gifts',
-    citiesAr: 'الدمام · الخبر',
-    citiesEn: 'Dammam · Khobar',
-    orders: 28,
-    years: 7,
-  },
-  {
-    name: 'فعاليات الأفق',
-    nameEn: 'Al-Ofoq Events',
-    serviceAr: 'تنظيم فعاليات',
-    serviceEn: 'Event Management',
-    citiesAr: 'الرياض · جدة · الدمام',
-    citiesEn: 'Riyadh · Jeddah · Dammam',
-    orders: 34,
-    years: 9,
-  },
-  {
-    name: 'مطبوعات الواحة',
-    nameEn: 'Oasis Prints',
-    serviceAr: 'مطبوعات',
-    serviceEn: 'Print Materials',
-    citiesAr: 'الرياض',
-    citiesEn: 'Riyadh',
-    orders: 51,
-    years: 14,
-  },
-];
+// English variant lives only here for the public marketing surface.
+const SERVICE_LABEL_EN: Record<string, string> = {
+  booth: 'Booth Design & Build',
+  gifts: 'Promotional Gifts',
+  event: 'Event Management',
+  printing: 'Print Materials',
+};
 
 export default async function HomePage({
   params,
@@ -54,6 +25,27 @@ export default async function HomePage({
   const t = await getTranslations('home');
   const tDir = await getTranslations('marketing.suppliersDirectory');
   const isAr = locale === 'ar';
+
+  // Live featured suppliers (top 4 approved by completed orders).
+  // Falls back to a "coming soon" notice when the directory is still empty —
+  // we deliberately never show hardcoded sample names in production.
+  const admin = createAdminClient();
+  const { data: supRaw } = await admin
+    .from('suppliers')
+    .select(
+      'id, company_name, specializations, cities, total_completed_orders, years_of_experience'
+    )
+    .eq('status', 'approved')
+    .order('total_completed_orders', { ascending: false, nullsFirst: false })
+    .limit(4);
+  const featuredSuppliers = (supRaw ?? []) as Array<{
+    id: string;
+    company_name: string;
+    specializations: string[] | null;
+    cities: string[] | null;
+    total_completed_orders: number | null;
+    years_of_experience: number | null;
+  }>;
 
   return (
     <main>
@@ -169,35 +161,75 @@ export default async function HomePage({
               {t('featuredSuppliers.subtitle')}
             </p>
           </div>
-          <Link
-            href="/suppliers"
-            className="text-sm font-medium text-[var(--color-action-blue)] hover:underline"
-          >
-            {t('featuredSuppliers.ctaAll')} ←
-          </Link>
-        </div>
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURED_SUPPLIERS.map((s) => (
-            <li
-              key={s.name}
-              className="rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
+          {featuredSuppliers.length > 0 ? (
+            <Link
+              href="/discover"
+              className="text-sm font-medium text-[var(--color-action-blue)] hover:underline"
             >
-              <div className="flex size-12 items-center justify-center rounded-xl bg-[var(--color-midnight-green-100)] text-base font-semibold text-[var(--color-midnight-green)]">
-                {(isAr ? s.name : s.nameEn).slice(0, 1)}
-              </div>
-              <h3 className="mt-4 font-semibold text-[var(--color-midnight-green)]">
-                {isAr ? s.name : s.nameEn}
-              </h3>
-              <p className="mt-1 text-xs text-[var(--color-stone-600)]">
-                {isAr ? s.serviceAr : s.serviceEn} · {isAr ? s.citiesAr : s.citiesEn}
-              </p>
-              <p className="mt-3 text-xs text-[var(--color-stone-600)]">
-                {tDir('cardOrders', { count: s.orders })} ·{' '}
-                {tDir('cardYears', { years: s.years })}
-              </p>
-            </li>
-          ))}
-        </ul>
+              {t('featuredSuppliers.ctaAll')} ←
+            </Link>
+          ) : null}
+        </div>
+        {featuredSuppliers.length === 0 ? (
+          <p className="mt-8 rounded-2xl border border-dashed border-[var(--color-stone-300)] bg-white p-10 text-center text-sm text-[var(--color-stone-600)]">
+            {isAr
+              ? 'قريباً — نقوم باعتماد دفعتنا الأولى من الموردين. سجّل لتُخطر فور افتتاح الدليل.'
+              : 'Coming soon — we’re approving our first batch of suppliers. Sign up to be notified when the directory opens.'}
+          </p>
+        ) : (
+          <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredSuppliers.map((s) => {
+              const name = s.company_name;
+              const services = (s.specializations ?? [])
+                .map((sp) =>
+                  isAr
+                    ? SERVICE_LABEL_AR[sp] ?? sp
+                    : SERVICE_LABEL_EN[sp] ?? sp
+                )
+                .slice(0, 2)
+                .join(' · ');
+              const citiesText = (s.cities ?? [])
+                .map((c) =>
+                  isAr ? CITY_LABEL_AR[c] ?? c : CITY_LABEL_EN[c] ?? c
+                )
+                .slice(0, 3)
+                .join(' · ');
+              return (
+                <li
+                  key={s.id}
+                  className="rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
+                >
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-[var(--color-midnight-green-100)] text-base font-semibold text-[var(--color-midnight-green)]">
+                    {name.slice(0, 1)}
+                  </div>
+                  <h3 className="mt-4 font-semibold text-[var(--color-midnight-green)]">
+                    {name}
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--color-stone-600)]">
+                    {services}
+                    {services && citiesText ? ' · ' : ''}
+                    {citiesText}
+                  </p>
+                  {s.total_completed_orders || s.years_of_experience ? (
+                    <p className="mt-3 text-xs text-[var(--color-stone-600)]">
+                      {s.total_completed_orders
+                        ? tDir('cardOrders', {
+                            count: s.total_completed_orders,
+                          })
+                        : ''}
+                      {s.total_completed_orders && s.years_of_experience
+                        ? ' · '
+                        : ''}
+                      {s.years_of_experience
+                        ? tDir('cardYears', { years: s.years_of_experience })
+                        : ''}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       {/* Testimonials */}

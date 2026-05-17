@@ -3,8 +3,15 @@ import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency } from '@/lib/utils/format';
+import { StatusPill } from '@/components/ui/status-pill';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { ShortlistButton } from './shortlist-button';
 import { AwardButton } from './award-button';
+
+// AI scoring is async. If a proposal has been waiting for > 5 minutes without
+// a score, the AI Gateway is either down or unconfigured — show a static
+// "scoring unavailable" notice instead of a perpetually-pending placeholder.
+const AI_PENDING_WINDOW_MS = 5 * 60 * 1000;
 
 interface ProposalRow {
   id: string;
@@ -61,6 +68,14 @@ export default async function ComparePage({
 
   return (
     <div>
+      <Breadcrumbs
+        items={[
+          { href: '/dashboard', label: 'لوحة التحكم' },
+          { href: '/dashboard/rfqs', label: 'طلباتي' },
+          { href: `/dashboard/rfqs/${id}`, label: rfq.rfq_number },
+          { label: 'مقارنة العروض' },
+        ]}
+      />
       <div className="text-xs text-[var(--color-stone-600)] num">{rfq.rfq_number}</div>
       <h1 className="mt-1 text-2xl font-semibold text-[var(--color-midnight-green)]">
         مقارنة العروض
@@ -154,9 +169,14 @@ export default async function ComparePage({
                     </div>
                   ) : null}
                 </div>
-              ) : (
+              ) : Date.now() - new Date(p.created_at).getTime() <
+                AI_PENDING_WINDOW_MS ? (
                 <p className="mt-4 text-xs text-[var(--color-stone-600)]">
                   جارٍ تقييم العرض من الذكاء الاصطناعي…
+                </p>
+              ) : (
+                <p className="mt-4 text-xs text-[var(--color-stone-600)]">
+                  تقييم الذكاء الاصطناعي غير متاح لهذا العرض حالياً.
                 </p>
               )}
 
@@ -168,7 +188,7 @@ export default async function ComparePage({
                   عرض التفاصيل ←
                 </Link>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-[var(--color-stone-600)]">{p.status}</span>
+                  <StatusPill status={p.status} kind="proposal" />
                   {p.status === 'submitted' || p.status === 'under_review' ? (
                     <ShortlistButton proposalId={p.id} rfqId={id} />
                   ) : p.status === 'shortlisted' ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { signAgreementAction } from '@/app/actions/agreement';
 import { Loader2 } from 'lucide-react';
 
@@ -11,14 +11,16 @@ export function SignButton({ agreementId }: { agreementId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [stage, setStage] = useState<'idle' | 'confirm'>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   function commit() {
+    setError(null);
     startTransition(async () => {
       const r = await signAgreementAction(agreementId);
       if (r.ok) {
         router.refresh();
       } else {
-        alert(r.error);
+        setError(r.error);
       }
     });
   }
@@ -52,12 +54,18 @@ export function SignButton({ agreementId }: { agreementId: string }) {
         </button>
         <button
           type="button"
-          onClick={() => setStage('idle')}
+          onClick={() => {
+            setStage('idle');
+            setError(null);
+          }}
           className="h-10 rounded-lg px-4 text-sm text-[var(--color-stone-600)]"
         >
           إلغاء
         </button>
       </div>
+      {error ? (
+        <p className="mt-2 text-xs text-[var(--color-danger)]">{error}</p>
+      ) : null}
     </div>
   );
 }

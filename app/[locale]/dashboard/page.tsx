@@ -2,27 +2,12 @@ import { Plus, Compass, FileText, Hourglass, MessageSquare, CheckCircle2, Calend
 import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { formatDateShort } from '@/lib/utils/format';
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'مسودة',
-  open: 'مفتوح',
-  negotiating: 'قيد التفاوض',
-  awarded: 'تم الاختيار',
-  in_escrow: 'قيد الضمان',
-  in_progress: 'قيد التنفيذ',
-  delivered: 'تم التسليم',
-  completed: 'مكتمل',
-  disputed: 'نزاع',
-  cancelled: 'ملغى',
-};
-
-const SERVICE_LABEL: Record<string, string> = {
-  booth: 'جناح',
-  gifts: 'هدايا',
-  event: 'فعالية',
-  printing: 'مطبوعات',
-};
+import { formatDate } from '@/lib/utils/format';
+import {
+  RFQ_STATUS_LABEL as STATUS_LABEL,
+  SERVICE_LABEL,
+  RFQ_STATUS_TONE,
+} from '@/lib/constants/labels';
 
 const UPCOMING_EXHIBITIONS = [
   { name: 'LEAP 2027', date: '2027-02-08', city: 'الرياض' },
@@ -79,12 +64,6 @@ export default async function DashboardHomePage() {
     total_completed_orders: number;
     average_rating: number | null;
   }>;
-
-  const fmt = new Intl.DateTimeFormat('ar-SA', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 
   return (
     <div className="space-y-10">
@@ -206,7 +185,7 @@ export default async function DashboardHomePage() {
                       <span aria-hidden>·</span>
                       <span>{SERVICE_LABEL[r.service_type] ?? r.service_type}</span>
                       <span aria-hidden>·</span>
-                      <span>{formatDateShort(r.created_at)}</span>
+                      <span>{formatDate(r.created_at, 'ar')}</span>
                     </div>
                     <p className="mt-1 text-sm font-semibold text-[var(--color-midnight-green)]">
                       {r.title}
@@ -233,7 +212,7 @@ export default async function DashboardHomePage() {
             >
               <div className="flex items-center gap-2 text-xs text-[var(--color-stone-600)]">
                 <Calendar className="size-4" aria-hidden />
-                <span>{fmt.format(new Date(ex.date))}</span>
+                <span>{formatDate(ex.date, 'ar')}</span>
               </div>
               <p className="mt-2 text-sm font-semibold text-[var(--color-midnight-green)]">
                 {ex.name}
@@ -333,22 +312,10 @@ function Kpi({
 }
 
 function StatusChip({ status }: { status: string }) {
-  const toneMap: Record<string, string> = {
-    open: 'bg-[var(--color-info-100)] text-[var(--color-info)]',
-    negotiating: 'bg-[var(--color-warning-100)] text-[var(--color-warning)]',
-    in_escrow: 'bg-[var(--color-action-blue)]/10 text-[var(--color-action-blue)]',
-    in_progress: 'bg-[var(--color-action-blue)]/10 text-[var(--color-action-blue)]',
-    delivered: 'bg-[var(--color-success-100)] text-[var(--color-success)]',
-    completed: 'bg-[var(--color-success-100)] text-[var(--color-success)]',
-    awarded: 'bg-[var(--color-success-100)] text-[var(--color-success)]',
-    cancelled: 'bg-[var(--color-stone-100)] text-[var(--color-stone-600)]',
-    disputed: 'bg-[var(--color-danger-100)] text-[var(--color-danger)]',
-    draft: 'bg-[var(--color-stone-100)] text-[var(--color-stone-600)]',
-  };
   return (
     <span
       className={`inline-flex h-7 shrink-0 items-center rounded-full px-3 text-xs font-medium ${
-        toneMap[status] ?? toneMap.draft
+        RFQ_STATUS_TONE[status] ?? RFQ_STATUS_TONE.draft
       }`}
     >
       {STATUS_LABEL[status] ?? status}

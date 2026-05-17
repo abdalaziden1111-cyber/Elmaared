@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { Building2, CreditCard, Hash, User } from 'lucide-react';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, formatIban } from '@/lib/utils/format';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { ReceiptUploadForm } from './receipt-upload-form';
 import { ApproveDeliveryButton } from './approve-delivery-button';
 
@@ -88,6 +89,14 @@ export default async function ClientEscrowPage({
 
   return (
     <div className="mx-auto max-w-3xl">
+      <Breadcrumbs
+        items={[
+          { href: '/dashboard', label: 'لوحة التحكم' },
+          { href: '/dashboard/rfqs', label: 'طلباتي' },
+          { href: `/dashboard/rfqs/${rfqId}`, label: 'الطلب' },
+          { label: 'الضمان' },
+        ]}
+      />
       <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">
         إيصال الدفع
       </h1>
@@ -129,7 +138,7 @@ export default async function ClientEscrowPage({
             {supplier.account_holder_name ? (
               <BankRow icon={<User className="size-4" />} label="اسم صاحب الحساب" value={supplier.account_holder_name} />
             ) : null}
-            <BankRow icon={<Hash className="size-4" />} label="IBAN" value={supplier.iban} mono />
+            <BankRow icon={<Hash className="size-4" />} label="IBAN" value={formatIban(supplier.iban)} mono />
           </dl>
         </section>
       ) : null}

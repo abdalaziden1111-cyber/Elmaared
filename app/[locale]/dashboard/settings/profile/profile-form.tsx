@@ -33,6 +33,7 @@ export function ProfileSettingsForms({
     <div className="mt-6 grid gap-6">
       {/* Profile basics */}
       <form
+        noValidate
         action={profAction}
         className="rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
       >
@@ -71,6 +72,7 @@ export function ProfileSettingsForms({
 
       {/* Password change */}
       <form
+        noValidate
         action={pwAction}
         className="rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
       >

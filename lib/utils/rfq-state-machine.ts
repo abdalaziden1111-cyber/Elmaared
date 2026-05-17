@@ -16,6 +16,9 @@ const VALID_TRANSITIONS: Transition[] = [
   { from: 'open', to: 'cancelled', allowedRoles: ['client', 'admin'] },
   { from: 'negotiating', to: 'awarded', allowedRoles: ['client'] },
   { from: 'negotiating', to: 'cancelled', allowedRoles: ['client', 'admin'] },
+  // MVP evidence-only mode: agreement signing transitions directly to in_progress.
+  // The in_escrow stop (and its admin gates) are dormant until escrow returns.
+  { from: 'awarded', to: 'in_progress', allowedRoles: ['admin'] },
   { from: 'awarded', to: 'in_escrow', allowedRoles: ['admin'] },
   { from: 'awarded', to: 'disputed', allowedRoles: ['client', 'admin'] },
   { from: 'in_escrow', to: 'in_progress', allowedRoles: ['admin'] },

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { createClient } from '@/lib/supabase/server';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { UnderstandingForm } from './understanding-form';
 import { SignButton } from './sign-button';
 
@@ -42,6 +43,14 @@ export default async function ClientAgreementPage({
 
   return (
     <div className="mx-auto max-w-3xl">
+      <Breadcrumbs
+        items={[
+          { href: '/dashboard', label: 'لوحة التحكم' },
+          { href: '/dashboard/rfqs', label: 'طلباتي' },
+          { href: `/dashboard/rfqs/${rfqId}`, label: 'الطلب' },
+          { label: 'اتفاق المشروع' },
+        ]}
+      />
       <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">
         اتفاق المشروع
       </h1>

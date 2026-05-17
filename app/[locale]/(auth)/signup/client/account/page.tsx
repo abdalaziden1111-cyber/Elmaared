@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { useSignupClientStore } from '@/stores/signup-client-store';
 import { FormField } from '@/components/ui/form-field';
 import { WizardStepper } from '@/components/ui/wizard-stepper';
@@ -26,7 +26,7 @@ export default function ClientAccountStepPage() {
       <h1 className="mt-6 text-2xl font-semibold text-[var(--color-midnight-green)]">
         أنشئ حسابك
       </h1>
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+      <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <FormField
           label="الاسم الكامل"
           name="fullName"

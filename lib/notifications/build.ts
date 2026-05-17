@@ -6,10 +6,15 @@
 //   2. Adding a new notification type requires a discriminated-union branch,
 //      so the compiler catches missing cases
 //   3. Tests can verify every type produces non-empty title + valid link
+//
+// `locale` is the recipient's preferred language read from
+// `profiles.preferred_language`. It picks the URL prefix; copy stays Arabic
+// for now (English copy is a follow-up i18n round).
 
 import type { Database } from '@/lib/supabase/types';
 
 type NotificationType = Database['public']['Enums']['notification_type'];
+export type NotificationLocale = 'ar' | 'en';
 
 export interface NotificationPayload {
   title: string;
@@ -30,7 +35,7 @@ export type BuildNotificationArgs =
   | { type: 'delivery_pending'; rfqNumber: string; rfqId: string }
   | { type: 'delivery_approved'; rfqNumber: string; rfqId: string }
   | { type: 'panic_button'; rfqNumber: string; chatId: string; reason: string }
-  | { type: 'message'; senderName: string; chatId: string; preview: string }
+  | { type: 'message'; senderName: string; rfqId: string; chatId: string; preview: string }
   | { type: 'system'; title: string; body: string; link?: string };
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://app-exhibition.sa').replace(
@@ -38,101 +43,112 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://app-exhibition.sa')
   ''
 );
 
-function clientUrl(path: string): string {
-  return `${APP_URL}/ar${path}`;
+const DEFAULT_LOCALE: NotificationLocale = 'ar';
+
+function normalizeLocale(locale: string | null | undefined): NotificationLocale {
+  return locale === 'en' || locale === 'ar' ? locale : DEFAULT_LOCALE;
 }
-function supplierUrl(path: string): string {
-  return `${APP_URL}/ar${path}`;
+
+function clientUrl(locale: NotificationLocale, path: string): string {
+  return `${APP_URL}/${locale}${path}`;
+}
+function supplierUrl(locale: NotificationLocale, path: string): string {
+  return `${APP_URL}/${locale}${path}`;
 }
 function adminUrl(path: string): string {
+  // Admin routes have no locale prefix by design.
   return `${APP_URL}${path}`;
 }
 
-export function buildNotification(args: BuildNotificationArgs): NotificationPayload {
+export function buildNotification(
+  args: BuildNotificationArgs,
+  locale: string | null | undefined = DEFAULT_LOCALE
+): NotificationPayload {
+  const l = normalizeLocale(locale);
   switch (args.type) {
     case 'rfq_match':
       return {
         title: 'طلب جديد يطابق تخصصك',
         body: `${args.rfqNumber} — ${args.rfqTitle}`,
-        link: supplierUrl(`/supplier/rfqs/${args.rfqId}`),
+        link: supplierUrl(l, `/supplier/rfqs/${args.rfqId}`),
       };
     case 'proposal_received':
       return {
         title: 'عرض جديد على طلبك',
         body: `${args.supplierName} قدّم عرضاً على ${args.rfqNumber}`,
-        link: clientUrl(`/dashboard/rfqs/${args.rfqId}/compare`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/compare`),
       };
     case 'proposal_shortlisted':
       return {
         title: 'تمّ ترشيح عرضك',
         body: `العميل ترشّح عرضك على ${args.rfqNumber} وفتح محادثة`,
-        link: supplierUrl(`/supplier/chats/${args.chatId}`),
+        link: supplierUrl(l, `/supplier/chats/${args.chatId}`),
       };
     case 'proposal_accepted':
       return {
         title: 'مبروك! عرضك مقبول',
         body: `العميل اختار عرضك على ${args.rfqNumber}`,
-        link: supplierUrl(`/supplier/rfqs/${args.rfqId}/agreement`),
+        link: supplierUrl(l, `/supplier/rfqs/${args.rfqId}`),
       };
     case 'proposal_rejected':
       return {
         title: 'تم رفض عرضك',
         body: `العميل اختار مورداً آخر على ${args.rfqNumber}`,
-        link: supplierUrl('/supplier/proposals'),
+        link: supplierUrl(l, '/supplier/rfqs'),
       };
     case 'agreement_pending':
       return {
         title: 'الاتفاق ينتظر فهمك',
         body: `اكتب فهمك لمشروع ${args.rfqNumber}`,
-        link: clientUrl(`/dashboard/rfqs/${args.rfqId}/agreement`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/agreement`),
       };
     case 'escrow_deposit_required':
       return {
         title: 'مطلوب إيداع مبدئي',
         body: `حوّل ${args.amount.toLocaleString('en')} ﷼ لبدء التنفيذ على ${args.rfqNumber}`,
-        link: clientUrl(`/dashboard/rfqs/${args.rfqId}/escrow`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/escrow`),
       };
     case 'escrow_received':
       return {
         title: 'تأكدنا استلام الإيداع',
         body: `يمكنك بدء العمل على ${args.rfqNumber}`,
-        link: supplierUrl(`/supplier/projects/${args.rfqId}`),
+        link: supplierUrl(l, `/supplier/rfqs/${args.rfqId}`),
       };
     case 'work_started':
       return {
         title: 'بدأ العمل على مشروعك',
         body: `المورد بدأ التنفيذ على ${args.rfqNumber}`,
-        link: clientUrl(`/dashboard/rfqs/${args.rfqId}`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}`),
       };
     case 'delivery_pending':
       return {
         title: 'تسليم بانتظار اعتمادك',
         body: `راجع التسليم لـ ${args.rfqNumber} واعتمده`,
-        link: clientUrl(`/dashboard/rfqs/${args.rfqId}/escrow`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/escrow`),
       };
     case 'delivery_approved':
       return {
         title: 'تمّ اعتماد التسليم',
         body: `الدفعة النهائية ستُحرّر بعد المراجعة الإدارية`,
-        link: supplierUrl(`/supplier/projects/${args.rfqId}`),
+        link: supplierUrl(l, `/supplier/rfqs/${args.rfqId}`),
       };
     case 'panic_button':
       return {
         title: '🚨 تصعيد عاجل',
         body: `${args.rfqNumber}: ${truncate(args.reason, 120)}`,
-        link: adminUrl(`/admin/chat/${args.chatId}`),
+        link: adminUrl('/admin'),
       };
     case 'message':
       return {
         title: `رسالة من ${args.senderName}`,
         body: truncate(args.preview, 120),
-        link: clientUrl(`/dashboard/chat/${args.chatId}`),
+        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/chats/${args.chatId}`),
       };
     case 'system':
       return {
         title: args.title,
         body: args.body,
-        link: args.link ?? clientUrl('/dashboard/notifications'),
+        link: args.link ?? clientUrl(l, '/dashboard/notifications'),
       };
     default: {
       // Exhaustiveness check — if a new NotificationType is added without
@@ -142,7 +158,7 @@ export function buildNotification(args: BuildNotificationArgs): NotificationPayl
       return {
         title: 'إشعار',
         body: null,
-        link: clientUrl('/dashboard/notifications'),
+        link: clientUrl(l, '/dashboard/notifications'),
       };
     }
   }

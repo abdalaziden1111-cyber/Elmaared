@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { useSignupSupplierStore } from '@/stores/signup-supplier-store';
 import { signupSupplierAction, type ActionResult } from '@/app/actions/auth';
 import { FormField } from '@/components/ui/form-field';
@@ -24,6 +24,29 @@ export default function SupplierDocumentsStepPage() {
     }
   }, [state, reset, router]);
 
+  const fieldErrors = state && !state.ok ? state.fieldErrors : undefined;
+  type SupplierStep =
+    | '/signup/supplier/account'
+    | '/signup/supplier/company'
+    | '/signup/supplier/specializations';
+  const priorStepFieldLabels: Record<string, { label: string; step: SupplierStep }> = {
+    email: { label: 'البريد الإلكتروني', step: '/signup/supplier/account' },
+    password: { label: 'كلمة المرور', step: '/signup/supplier/account' },
+    fullName: { label: 'الاسم الكامل', step: '/signup/supplier/account' },
+    phone: { label: 'رقم الهاتف', step: '/signup/supplier/account' },
+    companyName: { label: 'اسم الشركة', step: '/signup/supplier/company' },
+    crNumber: { label: 'رقم السجل التجاري', step: '/signup/supplier/company' },
+    specializations: { label: 'التخصصات', step: '/signup/supplier/specializations' },
+    cities: { label: 'مدن الخدمة', step: '/signup/supplier/specializations' },
+  };
+  const priorStepErrors = fieldErrors
+    ? Object.entries(priorStepFieldLabels).flatMap(([name, info]) => {
+        const msg = fieldErrors[name]?.[0];
+        return msg ? [{ name, label: info.label, step: info.step, msg }] : [];
+      })
+    : [];
+  const firstBrokenStep: SupplierStep | undefined = priorStepErrors[0]?.step;
+
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
       <WizardStepper
@@ -41,7 +64,7 @@ export default function SupplierDocumentsStepPage() {
         نستخدم هذه البيانات لتحويل أرباحك بعد إكمال كل مشروع.
       </p>
 
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
+      <form noValidate action={formAction} className="mt-6 flex flex-col gap-4">
         {/* All collected data goes through */}
         <input type="hidden" name="email" value={data.email} />
         <input type="hidden" name="password" value={data.password} />
@@ -60,11 +83,37 @@ export default function SupplierDocumentsStepPage() {
         />
         <input type="hidden" name="cities" value={JSON.stringify(data.cities)} />
 
+        {priorStepErrors.length > 0 ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger)]/10 p-3 text-sm text-[var(--color-danger)]"
+          >
+            <p className="font-medium">يوجد خطأ في بيانات الخطوات السابقة:</p>
+            <ul className="mt-1 list-disc ps-5">
+              {priorStepErrors.map((e) => (
+                <li key={e.name}>
+                  <span className="font-medium">{e.label}:</span> {e.msg}
+                </li>
+              ))}
+            </ul>
+            {firstBrokenStep ? (
+              <button
+                type="button"
+                onClick={() => router.push(firstBrokenStep)}
+                className="mt-2 text-xs underline"
+              >
+                ← العودة لتعديل البيانات
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <FormField
           label="اسم البنك (اختياري)"
           name="bankName"
           value={data.bankName ?? ''}
           onChange={(e) => setField('bankName', e.target.value)}
+          error={fieldErrors?.bankName?.[0]}
         />
         <FormField
           label="IBAN السعودي (اختياري — يمكن تحديثه لاحقاً)"
@@ -73,13 +122,14 @@ export default function SupplierDocumentsStepPage() {
           value={data.iban ?? ''}
           onChange={(e) => setField('iban', e.target.value)}
           hint="يبدأ بـ SA ويتبعه 22 رقم"
-          error={state && !state.ok ? state.fieldErrors?.iban?.[0] : undefined}
+          error={fieldErrors?.iban?.[0]}
         />
         <FormField
           label="اسم صاحب الحساب (اختياري)"
           name="accountHolderName"
           value={data.accountHolderName ?? ''}
           onChange={(e) => setField('accountHolderName', e.target.value)}
+          error={fieldErrors?.accountHolderName?.[0]}
         />
 
         {state && !state.ok && !state.fieldErrors ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { useSignupClientStore } from '@/stores/signup-client-store';
 import { signupClientAction, type ActionResult } from '@/app/actions/auth';
 import { FormField } from '@/components/ui/form-field';
@@ -25,6 +25,21 @@ export default function ClientCompanyStepPage() {
     }
   }, [state, reset, router]);
 
+  const fieldErrors = state && !state.ok ? state.fieldErrors : undefined;
+  const accountStepFields = ['email', 'password', 'fullName', 'phone'] as const;
+  const accountStepFieldLabels: Record<(typeof accountStepFields)[number], string> = {
+    email: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    fullName: 'الاسم الكامل',
+    phone: 'رقم الهاتف',
+  };
+  const accountStepErrors = fieldErrors
+    ? accountStepFields.flatMap((name) => {
+        const msg = fieldErrors[name]?.[0];
+        return msg ? [{ name, label: accountStepFieldLabels[name], msg }] : [];
+      })
+    : [];
+
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-12">
       <WizardStepper
@@ -37,12 +52,35 @@ export default function ClientCompanyStepPage() {
       <h1 className="mt-6 text-2xl font-semibold text-[var(--color-midnight-green)]">
         بيانات الشركة
       </h1>
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
+      <form noValidate action={formAction} className="mt-6 flex flex-col gap-4">
         {/* Hidden fields from previous step */}
         <input type="hidden" name="email" value={data.email} />
         <input type="hidden" name="password" value={data.password} />
         <input type="hidden" name="fullName" value={data.fullName} />
         <input type="hidden" name="phone" value={data.phone} />
+
+        {accountStepErrors.length > 0 ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger)]/10 p-3 text-sm text-[var(--color-danger)]"
+          >
+            <p className="font-medium">يوجد خطأ في بيانات خطوة الحساب:</p>
+            <ul className="mt-1 list-disc ps-5">
+              {accountStepErrors.map((e) => (
+                <li key={e.name}>
+                  <span className="font-medium">{e.label}:</span> {e.msg}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => router.push('/signup/client/account')}
+              className="mt-2 text-xs underline"
+            >
+              ← العودة لتعديل بيانات الحساب
+            </button>
+          </div>
+        ) : null}
 
         <FormField
           label="اسم الشركة التجاري"
@@ -50,13 +88,14 @@ export default function ClientCompanyStepPage() {
           required
           value={data.companyName}
           onChange={(e) => setField('companyName', e.target.value)}
-          error={state && !state.ok ? state.fieldErrors?.companyName?.[0] : undefined}
+          error={fieldErrors?.companyName?.[0]}
         />
         <FormField
           label="الاسم القانوني (اختياري)"
           name="legalName"
           value={data.legalName ?? ''}
           onChange={(e) => setField('legalName', e.target.value)}
+          error={fieldErrors?.legalName?.[0]}
         />
         <FormField
           label="رقم السجل التجاري"
@@ -67,13 +106,14 @@ export default function ClientCompanyStepPage() {
           value={data.crNumber}
           onChange={(e) => setField('crNumber', e.target.value)}
           hint="10 أرقام بالضبط"
-          error={state && !state.ok ? state.fieldErrors?.crNumber?.[0] : undefined}
+          error={fieldErrors?.crNumber?.[0]}
         />
         <FormField
           label="الرقم الضريبي (اختياري)"
           name="vatNumber"
           value={data.vatNumber ?? ''}
           onChange={(e) => setField('vatNumber', e.target.value)}
+          error={fieldErrors?.vatNumber?.[0]}
         />
 
         <div className="flex flex-col gap-1.5">
@@ -84,13 +124,21 @@ export default function ClientCompanyStepPage() {
             required
             value={data.size}
             onChange={(e) => setField('size', e.target.value as 'enterprise' | 'mid' | 'startup' | '')}
-            className="h-11 rounded-xl border border-[var(--color-stone-300)] bg-white px-3 text-sm"
+            aria-invalid={Boolean(fieldErrors?.size?.[0])}
+            className={`h-11 rounded-xl border bg-white px-3 text-sm ${
+              fieldErrors?.size?.[0]
+                ? 'border-[var(--color-danger)]'
+                : 'border-[var(--color-stone-300)]'
+            }`}
           >
             <option value="">اختر…</option>
             <option value="startup">شركة ناشئة</option>
             <option value="mid">شركة متوسطة</option>
             <option value="enterprise">شركة كبيرة</option>
           </select>
+          {fieldErrors?.size?.[0] ? (
+            <p className="text-xs text-[var(--color-danger)]">{fieldErrors.size[0]}</p>
+          ) : null}
         </div>
 
         <FormField
@@ -98,6 +146,7 @@ export default function ClientCompanyStepPage() {
           name="industry"
           value={data.industry ?? ''}
           onChange={(e) => setField('industry', e.target.value)}
+          error={fieldErrors?.industry?.[0]}
         />
 
         <div className="flex flex-col gap-1.5">
@@ -108,7 +157,12 @@ export default function ClientCompanyStepPage() {
             required
             value={data.city}
             onChange={(e) => setField('city', e.target.value)}
-            className="h-11 rounded-xl border border-[var(--color-stone-300)] bg-white px-3 text-sm"
+            aria-invalid={Boolean(fieldErrors?.city?.[0])}
+            className={`h-11 rounded-xl border bg-white px-3 text-sm ${
+              fieldErrors?.city?.[0]
+                ? 'border-[var(--color-danger)]'
+                : 'border-[var(--color-stone-300)]'
+            }`}
           >
             <option value="">اختر…</option>
             {CITIES.map((c) => (
@@ -117,6 +171,9 @@ export default function ClientCompanyStepPage() {
               </option>
             ))}
           </select>
+          {fieldErrors?.city?.[0] ? (
+            <p className="text-xs text-[var(--color-danger)]">{fieldErrors.city[0]}</p>
+          ) : null}
         </div>
 
         {state && !state.ok && !state.fieldErrors ? (

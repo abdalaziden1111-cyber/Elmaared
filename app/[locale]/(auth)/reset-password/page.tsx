@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { updatePasswordAction, type ActionResult } from '@/app/actions/auth';
 import { FormField } from '@/components/ui/form-field';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
         <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">
           عيّن كلمة مرور جديدة
         </h1>
-        <form action={formAction} className="mt-6 flex flex-col gap-4">
+        <form noValidate action={formAction} className="mt-6 flex flex-col gap-4">
           <FormField
             type="password"
             label="كلمة المرور الجديدة"

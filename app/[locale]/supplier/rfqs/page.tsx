@@ -2,6 +2,7 @@ import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort } from '@/lib/utils/format';
+import { SERVICE_LABEL, CITY_LABEL } from '@/lib/constants/labels';
 import { SearchBar } from '@/components/ui/search-bar';
 import { Pagination } from '@/components/ui/pagination';
 
@@ -16,13 +17,6 @@ interface RfqRow {
   proposals_deadline: string | null;
   created_at: string;
 }
-
-const SERVICE_LABEL: Record<string, string> = {
-  booth: 'بوث',
-  gifts: 'هدايا',
-  event: 'فعالية',
-  printing: 'طباعة',
-};
 
 const PAGE_SIZE = 20;
 
@@ -122,7 +116,9 @@ export default async function SupplierRfqsListPage({
                       <h2 className="mt-0.5 text-base font-semibold">{r.title}</h2>
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--color-stone-600)]">
                         <span>{SERVICE_LABEL[r.service_type] ?? r.service_type}</span>
-                        {r.exhibition_city ? <span>· {r.exhibition_city}</span> : null}
+                        {r.exhibition_city ? (
+                          <span>· {CITY_LABEL[r.exhibition_city] ?? r.exhibition_city}</span>
+                        ) : null}
                         {r.budget_max ? (
                           <span>· حتى {r.budget_max.toLocaleString('en')} ﷼</span>
                         ) : null}

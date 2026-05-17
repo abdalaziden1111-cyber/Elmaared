@@ -147,6 +147,7 @@ function DetailsStep(props: {
 
   return (
     <form
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         onNext();
@@ -342,6 +343,7 @@ function BudgetStep({
 }) {
   return (
     <form
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         onNext();
@@ -794,13 +796,13 @@ function ReviewStep({
           ← السابق
         </button>
         <div className="flex flex-wrap gap-2">
-          <form action={formAction}>
+          <form noValidate action={formAction}>
             <input type="hidden" name="payload" value={JSON.stringify(buildPayload(false))} />
             <SubmitButton className="bg-[var(--color-stone-600)] hover:bg-[var(--color-charcoal)]">
               حفظ كمسودة
             </SubmitButton>
           </form>
-          <form action={formAction}>
+          <form noValidate action={formAction}>
             <input type="hidden" name="payload" value={JSON.stringify(buildPayload(true))} />
             <SubmitButton>انشر الطلب</SubmitButton>
           </form>

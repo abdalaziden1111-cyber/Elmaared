@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/i18n/routing';
 import { submitProposalAction } from '@/app/actions/proposal';
 import type { ActionResult } from '@/app/actions/auth';
 import { FormField } from '@/components/ui/form-field';
@@ -38,7 +38,7 @@ export default function SupplierProposalFormPage({
         نَصِف العرض بدقة. يقيّمه الذكاء الاصطناعي لمساعدة العميل في المقارنة.
       </p>
 
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
+      <form noValidate action={formAction} className="mt-6 flex flex-col gap-4">
         <input type="hidden" name="rfqId" value={rfqId} />
 
         <FormField
@@ -89,9 +89,20 @@ export default function SupplierProposalFormPage({
             rows={6}
             minLength={100}
             required
-            className="rounded-xl border border-[var(--color-stone-300)] bg-white p-3 text-sm"
+            aria-invalid={Boolean(state && !state.ok && state.fieldErrors?.scopeOfWork)}
+            className={`rounded-xl border bg-white p-3 text-sm ${
+              state && !state.ok && state.fieldErrors?.scopeOfWork
+                ? 'border-[var(--color-danger)]'
+                : 'border-[var(--color-stone-300)]'
+            }`}
           />
-          <p className="text-xs text-[var(--color-stone-600)]">100 حرف على الأقل</p>
+          {state && !state.ok && state.fieldErrors?.scopeOfWork ? (
+            <p className="text-xs text-[var(--color-danger)]">
+              {state.fieldErrors.scopeOfWork[0]}
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--color-stone-600)]">100 حرف على الأقل</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -102,8 +113,18 @@ export default function SupplierProposalFormPage({
             id="excludedItems"
             name="excludedItems"
             rows={2}
-            className="rounded-xl border border-[var(--color-stone-300)] bg-white p-3 text-sm"
+            aria-invalid={Boolean(state && !state.ok && state.fieldErrors?.excludedItems)}
+            className={`rounded-xl border bg-white p-3 text-sm ${
+              state && !state.ok && state.fieldErrors?.excludedItems
+                ? 'border-[var(--color-danger)]'
+                : 'border-[var(--color-stone-300)]'
+            }`}
           />
+          {state && !state.ok && state.fieldErrors?.excludedItems ? (
+            <p className="text-xs text-[var(--color-danger)]">
+              {state.fieldErrors.excludedItems[0]}
+            </p>
+          ) : null}
         </div>
 
         <FormField

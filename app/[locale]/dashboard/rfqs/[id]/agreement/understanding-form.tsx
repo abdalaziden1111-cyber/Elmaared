@@ -36,7 +36,7 @@ export function UnderstandingForm({
   }
 
   return (
-    <form action={formAction} className="mt-2 flex flex-col gap-3">
+    <form noValidate action={formAction} className="mt-2 flex flex-col gap-3">
       <input type="hidden" name="agreementId" value={agreementId} />
       <textarea
         name="understanding"

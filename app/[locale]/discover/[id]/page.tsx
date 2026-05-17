@@ -4,6 +4,7 @@ import { Link } from '@/lib/i18n/routing';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort } from '@/lib/utils/format';
+import { SERVICE_LABEL_LONG as SERVICE_LABEL, CITY_LABEL } from '@/lib/constants/labels';
 
 interface SupplierProfile {
   id: string;
@@ -44,13 +45,6 @@ interface ReviewRowPublic {
   created_at: string;
   rfqs: { rfq_number: string; title: string } | null;
 }
-
-const SERVICE_LABEL: Record<string, string> = {
-  booth: 'تصميم وتنفيذ أجنحة',
-  gifts: 'هدايا ترويجية',
-  event: 'تنظيم فعاليات',
-  printing: 'مطبوعات',
-};
 
 const SUB_RATING_LABELS: { key: keyof Pick<ReviewRowPublic, 'rating_quality' | 'rating_timeliness' | 'rating_communication' | 'rating_flexibility' | 'rating_price_value'>; label: string }[] = [
   { key: 'rating_quality', label: 'الجودة' },
@@ -163,7 +157,7 @@ export default async function PublicSupplierProfilePage({
         <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
           {s.cities.map((c) => (
             <span key={c} className="rounded-full bg-[var(--color-stone-100)] px-3 py-1">
-              {c}
+              {CITY_LABEL[c] ?? c}
             </span>
           ))}
         </div>
@@ -209,6 +203,10 @@ export default async function PublicSupplierProfilePage({
                   <img
                     src={p.cover_image_url}
                     alt={p.title}
+                    loading="lazy"
+                    decoding="async"
+                    width={640}
+                    height={360}
                     className="aspect-video w-full object-cover"
                   />
                 ) : (

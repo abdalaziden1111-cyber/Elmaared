@@ -14,11 +14,17 @@ export default async function ClientChatPage({
 
   const { data: chatRowRaw } = await supabase
     .from('chats')
-    .select('id, rfq_id, client_id, supplier:suppliers (id, company_name)')
+    .select('id, rfq_id, client_id, panic_at, supplier:suppliers (id, company_name)')
     .eq('id', chatId)
     .single();
   const chat = chatRowRaw as
-    | { id: string; rfq_id: string; client_id: string; supplier: { id: string; company_name: string } | null }
+    | {
+        id: string;
+        rfq_id: string;
+        client_id: string;
+        panic_at: string | null;
+        supplier: { id: string; company_name: string } | null;
+      }
     | null;
   if (!chat || chat.client_id !== user.id || chat.rfq_id !== rfqId) notFound();
 
@@ -42,6 +48,7 @@ export default async function ClientChatPage({
           currentUserId={user.id}
           currentRole="client"
           initialMessages={messages}
+          alreadyEscalated={chat.panic_at != null}
         />
       </div>
     </div>

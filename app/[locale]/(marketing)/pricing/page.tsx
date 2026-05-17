@@ -1,21 +1,37 @@
-export default function PricingPage() {
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+
+export default async function PricingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale as 'ar' | 'en');
+  const t = await getTranslations('marketing.pricing');
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <h1 className="text-4xl font-semibold text-[var(--color-midnight-green)]">
-        تسعير بسيط وشفاف
+        {t('title')}
       </h1>
-      <p className="mt-4 text-lg text-[var(--color-stone-600)]">
-        لا اشتراكات. عمولة واحدة فقط على المشاريع التي تتمّ بنجاح عبر المنصة.
-      </p>
+      <p className="mt-4 text-lg text-[var(--color-stone-600)]">{t('subtitle')}</p>
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2">
-        <Card title="للعملاء" rate="2%" body="من قيمة المشروع، تُضاف وقت الإيداع المبدئي." />
-        <Card title="للموردين" rate="3%" body="من قيمة المشروع، تُخصم من الدفعة النهائية." />
+        <Card
+          title={t('clientTitle')}
+          rate={t('clientRate')}
+          body={t('clientBody')}
+        />
+        <Card
+          title={t('supplierTitle')}
+          rate={t('supplierRate')}
+          body={t('supplierBody')}
+        />
       </div>
 
       <p className="mt-10 rounded-xl bg-white p-5 text-sm">
-        إجمالي عمولة المنصة <strong>5%</strong>. ضريبة القيمة المضافة 15% تُحتسب على
-        العمولة فقط (لا على قيمة المشروع نفسها).
+        {t('footnoteIntro')} <strong>{t('footnotePercent')}</strong>
+        {t('footnoteOutro')}
       </p>
     </main>
   );

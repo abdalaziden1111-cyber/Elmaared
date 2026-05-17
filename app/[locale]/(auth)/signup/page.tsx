@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/lib/i18n/routing';
 import { Building2, Hammer } from 'lucide-react';
 
 export default function SignupRoleChooserPage() {

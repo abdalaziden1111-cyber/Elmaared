@@ -1,14 +1,8 @@
 import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { SERVICE_LABEL } from '@/lib/constants/labels';
 import { Stepper } from '../welcome/page';
-
-const SERVICE_LABEL: Record<string, string> = {
-  booth: 'جناح',
-  gifts: 'هدايا',
-  event: 'فعالية',
-  printing: 'مطبوعات',
-};
 
 export default async function OnboardingRecommendationsPage() {
   await requireRole(['client']);

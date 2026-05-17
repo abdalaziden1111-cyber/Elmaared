@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 import type { Database } from '@/lib/supabase/types';
 
 type UserRole = Database['public']['Enums']['user_role'];
@@ -13,16 +14,18 @@ type UserRole = Database['public']['Enums']['user_role'];
  * is the right move on a privileged route.
  */
 export async function requireRole(allowedRoles: readonly UserRole[]) {
+  const locale = await getLocale();
+
   let supabase;
   try {
     supabase = await createClient();
   } catch {
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   const { data: profileRaw, error: profileError } = await supabase
@@ -33,12 +36,12 @@ export async function requireRole(allowedRoles: readonly UserRole[]) {
 
   if (profileError) {
     // Profile lookup failed — treat as unauth to be safe.
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   const profile = profileRaw as { role: UserRole } | null;
   if (!profile || !allowedRoles.includes(profile.role)) {
-    redirect('/');
+    redirect(`/${locale}`);
   }
 
   return { user, role: profile.role };

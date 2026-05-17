@@ -51,10 +51,11 @@ rec('1.8.14', 'awardProposalAction exported', propActions.includes('awardProposa
 rec('1.8.15', 'shortlistProposalAction exported', chatActions.includes('shortlistProposalAction'));
 
 // === Status pill mapping covers all 10 statuses ===
-const dashListSrc = readFileSync('app/[locale]/dashboard/rfqs/page.tsx', 'utf8');
+// Source consolidated into lib/constants/labels.ts during polish (Phase B).
+const labelsSrc = readFileSync('lib/constants/labels.ts', 'utf8');
 const statusLabels = ['draft','open','negotiating','awarded','in_escrow','in_progress','delivered','completed','disputed','cancelled'];
-const allMapped = statusLabels.every(s => dashListSrc.includes(`'${s}'`));
-rec('1.8.16', 'rfqs/page.tsx STATUS_LABEL maps all 10 statuses', allMapped);
+const allMapped = statusLabels.every(s => labelsSrc.includes(`${s}:`));
+rec('1.8.16', 'RFQ_STATUS_LABEL maps all 10 statuses (lib/constants/labels.ts)', allMapped);
 
 // === Awarded chip + dispute pill colors ===
 rec('1.8.17', 'detail page: status pill present (rounded-full span)', dR.html.includes('rounded-full'));

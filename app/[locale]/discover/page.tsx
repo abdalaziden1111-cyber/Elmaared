@@ -1,5 +1,6 @@
 import { Link } from '@/lib/i18n/routing';
 import { createClient } from '@/lib/supabase/server';
+import { SERVICE_LABEL_LONG as SERVICE_LABEL, CITY_LABEL } from '@/lib/constants/labels';
 
 interface SupplierRow {
   id: string;
@@ -11,13 +12,6 @@ interface SupplierRow {
   total_completed_orders: number | null;
   years_of_experience: number | null;
 }
-
-const SERVICE_LABEL: Record<string, string> = {
-  booth: 'تصميم وتنفيذ أجنحة',
-  gifts: 'هدايا ترويجية',
-  event: 'تنظيم فعاليات',
-  printing: 'مطبوعات',
-};
 const SERVICE_OPTIONS = ['booth', 'gifts', 'event', 'printing'] as const;
 const CITY_OPTIONS = [
   'الرياض',
@@ -189,7 +183,10 @@ export default async function DiscoverPage({
                   ))}
                 </div>
                 <p className="mt-3 text-xs text-[var(--color-stone-600)]">
-                  {s.cities.slice(0, 3).join(' · ')}
+                  {s.cities
+                    .slice(0, 3)
+                    .map((c) => CITY_LABEL[c] ?? c)
+                    .join(' · ')}
                 </p>
                 <div className="mt-3 flex items-center gap-3 text-xs text-[var(--color-stone-600)]">
                   {s.average_rating ? (

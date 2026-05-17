@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 
 /**
  * Returns the authenticated Supabase user, or null when no session exists,
@@ -23,7 +24,8 @@ export async function getUser() {
 export async function requireUser() {
   const user = await getUser();
   if (!user) {
-    redirect('/login');
+    const locale = await getLocale();
+    redirect(`/${locale}/login`);
   }
   return user;
 }

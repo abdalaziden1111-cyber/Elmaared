@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
 import { logoutAction } from '@/app/actions/auth';
 import { MobileMenu } from '@/components/layout/mobile-menu';
+import { SidebarNav, type SidebarNavGroup } from '@/components/layout/sidebar-nav';
 import { HeaderBar } from '@/components/header/header-bar';
 import { plexArabic, inter } from '@/app/fonts';
 import '@/app/globals.css';
@@ -15,60 +15,63 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false, noarchive: true, nosnippet: true },
 };
 
+const NAV_GROUPS: SidebarNavGroup[] = [
+  {
+    title: 'عام',
+    links: [{ href: '/admin', label: 'نظرة عامة' }],
+  },
+  {
+    title: 'المستخدمون',
+    links: [{ href: '/admin/users', label: 'كل المستخدمين' }],
+  },
+  {
+    title: 'الموردون',
+    links: [
+      { href: '/admin/suppliers', label: 'كل الموردين' },
+      { href: '/admin/suppliers/pending', label: 'موردون قيد المراجعة' },
+    ],
+  },
+  {
+    title: 'العمليات',
+    links: [
+      { href: '/admin/rfqs', label: 'الطلبات' },
+      { href: '/admin/agreements/pending', label: 'الاتفاقيات المعلّقة' },
+      { href: '/admin/chats', label: 'المحادثات' },
+    ],
+  },
+  {
+    title: 'الضمان والمدفوعات',
+    links: [
+      { href: '/admin/escrow/pending-deposits', label: 'الإيداعات المعلّقة' },
+      { href: '/admin/escrow/pending-releases', label: 'تحرير دفعات الموردين' },
+      { href: '/admin/escrow/transactions', label: 'دفتر الضمان' },
+    ],
+  },
+  {
+    title: 'النزاعات والتصعيدات',
+    links: [
+      { href: '/admin/panics', label: '🚨 التصعيدات' },
+      { href: '/admin/disputes', label: 'النزاعات' },
+    ],
+  },
+  {
+    title: 'النظام',
+    links: [
+      { href: '/admin/activity', label: 'سجل النشاط' },
+      { href: '/admin/admins', label: 'فريق Admin' },
+      { href: '/admin/settings', label: 'إعدادات المنصة' },
+    ],
+  },
+];
+
 function NavLinks() {
-  const cls =
-    'rounded-lg px-3 py-2 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-action-blue)]';
   return (
-    <nav
-      className="flex flex-col gap-1 text-sm text-[var(--color-cream)]/80"
-      aria-label="قائمة لوحة Admin"
-    >
-      <Link href="/admin" className={cls}>
-        نظرة عامة
-      </Link>
-      <Link href="/admin/users" className={cls}>
-        المستخدمون
-      </Link>
-      <Link href="/admin/suppliers" className={cls}>
-        كل الموردين
-      </Link>
-      <Link href="/admin/suppliers/pending" className={cls}>
-        موردون قيد المراجعة
-      </Link>
-      <Link href="/admin/rfqs" className={cls}>
-        الطلبات
-      </Link>
-      <Link href="/admin/agreements/pending" className={cls}>
-        الاتفاقيات المعلّقة
-      </Link>
-      <Link href="/admin/chats" className={cls}>
-        المحادثات
-      </Link>
-      <Link href="/admin/panics" className={cls}>
-        🚨 التصعيدات
-      </Link>
-      <Link href="/admin/escrow/pending-deposits" className={cls}>
-        الإيداعات المعلّقة
-      </Link>
-      <Link href="/admin/escrow/pending-releases" className={cls}>
-        تحرير دفعات الموردين
-      </Link>
-      <Link href="/admin/escrow/transactions" className={cls}>
-        دفتر الضمان
-      </Link>
-      <Link href="/admin/disputes" className={cls}>
-        النزاعات
-      </Link>
-      <Link href="/admin/activity" className={cls}>
-        سجل النشاط
-      </Link>
-      <Link href="/admin/admins" className={cls}>
-        فريق Admin
-      </Link>
-      <Link href="/admin/settings" className={cls}>
-        إعدادات المنصة
-      </Link>
-    </nav>
+    <SidebarNav
+      groups={NAV_GROUPS}
+      tone="dark"
+      ariaLabel="قائمة لوحة Admin"
+      unlocalized
+    />
   );
 }
 

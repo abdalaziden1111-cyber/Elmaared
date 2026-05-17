@@ -19,7 +19,7 @@ export async function SiteFooter() {
       links: [
         { href: '/about', label: t('links.about') },
         { href: '/blog', label: t('links.blog') },
-        { href: '/suppliers', label: t('links.suppliers') },
+        { href: '/discover', label: t('links.suppliers') },
         { href: '/exhibitions', label: t('links.exhibitions') },
       ],
     },

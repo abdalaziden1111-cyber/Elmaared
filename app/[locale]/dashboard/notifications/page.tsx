@@ -40,7 +40,9 @@ export default async function NotificationsPage() {
       </h1>
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-sm text-[var(--color-stone-600)]">لا يوجد إشعارات.</p>
+        <p className="mt-6 rounded-2xl border border-dashed border-[var(--color-stone-300)] bg-white p-8 text-center text-sm text-[var(--color-stone-600)]">
+          لا يوجد إشعارات بعد. سنبلّغك هنا عند وصول عروض جديدة أو تحديثات على طلباتك.
+        </p>
       ) : (
         <ul className="mt-6 grid gap-2">
           {rows.map((n) => (

@@ -51,6 +51,7 @@ export function CompanyForm({ initial }: { initial: Initial }) {
 
   return (
     <form
+      noValidate
       action={formAction}
       className="mt-6 rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
     >

@@ -24,12 +24,13 @@ const ROUTES = [
   '/ar/pricing', '/en/pricing',
   '/ar/about', '/en/about',
   '/ar/contact', '/en/contact',
-  '/ar/suppliers', '/en/suppliers',
   '/ar/exhibitions', '/en/exhibitions',
   '/ar/blog', '/en/blog',
   '/ar/legal/terms', '/en/legal/terms',
   '/ar/legal/privacy', '/en/legal/privacy',
 ];
+// /suppliers was consolidated into /discover during polish — now a redirect.
+const REDIRECTED_ROUTES = ['/ar/suppliers', '/en/suppliers'];
 const BLOG_SLUGS = [
   'how-to-pick-a-booth-contractor', 'escrow-vs-direct-payment',
   'ai-evaluation-criteria', 'panic-button-when-to-use', 'planning-your-first-leap',
@@ -39,6 +40,17 @@ for (const route of ROUTES) {
   n++;
   const r = await fetchPage(route, null);
   rec(`1.1.${n}`, `GET ${route}`, r.status === 200, `status=${r.status}`);
+}
+for (const route of REDIRECTED_ROUTES) {
+  n++;
+  const r = await fetchPage(route, null);
+  const locale = route.startsWith('/ar') ? '/ar' : '/en';
+  rec(
+    `1.1.${n}`,
+    `GET ${route} → ${locale}/discover (redirect)`,
+    (r.status === 307 || r.status === 308) && (r.location || '').endsWith(`${locale}/discover`),
+    `status=${r.status} loc=${r.location}`
+  );
 }
 for (const slug of BLOG_SLUGS) {
   n++;
@@ -52,7 +64,7 @@ rec(`1.1.${n}`, 'Header has logo aria-label="تطبيق المعارض"', homeR.
 n++; rec(`1.1.${n}`, 'Header has English locale toggle button', /<button[^>]*>English<\/button>/.test(homeR.html));
 n++; rec(`1.1.${n}`, 'Header has login link', homeR.html.includes('/ar/login'));
 n++; rec(`1.1.${n}`, 'Header has signup link', homeR.html.includes('/ar/signup'));
-n++; rec(`1.1.${n}`, 'Header has 7 marketing nav links', ['/for-clients','/for-suppliers','/how-it-works','/pricing','/suppliers','/exhibitions','/blog'].every(p => homeR.html.includes(`/ar${p}`)));
+n++; rec(`1.1.${n}`, 'Header has 7 marketing nav links', ['/for-clients','/for-suppliers','/how-it-works','/pricing','/discover','/exhibitions','/blog'].every(p => homeR.html.includes(`/ar${p}`)));
 
 // --- 1.1.X Footer chrome (legal links + site sections) ---
 n++; rec(`1.1.${n}`, 'Footer has /legal/terms link', homeR.html.includes('/ar/legal/terms'));
@@ -94,8 +106,8 @@ rec(`1.1.${n}`, 'about: H1 reads "من نحن"', abR.html.includes('من نحن'
 n++; const coR = await fetchPage('/ar/contact', null);
 rec(`1.1.${n}`, 'contact: H1 present', /<h1/.test(coR.html));
 n++; rec(`1.1.${n}`, 'contact: form/contact info', coR.html.includes('email') || coR.html.includes('بريد') || /<form/.test(coR.html));
-n++; const supR = await fetchPage('/ar/suppliers', null);
-rec(`1.1.${n}`, 'suppliers (public marketing): H1', /<h1/.test(supR.html));
+n++; const supR = await fetchPage('/ar/discover', null);
+rec(`1.1.${n}`, 'discover (public marketing): H1', /<h1/.test(supR.html));
 n++; const exR = await fetchPage('/ar/exhibitions', null);
 rec(`1.1.${n}`, 'exhibitions: H1', /<h1/.test(exR.html));
 n++; const blR = await fetchPage('/ar/blog', null);

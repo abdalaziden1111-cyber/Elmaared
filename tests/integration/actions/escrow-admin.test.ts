@@ -61,7 +61,7 @@ describe('adminConfirmInitialDepositAction', () => {
     if (!result.ok) expect(result.error).toMatch(/حالة|الحالية/);
   });
 
-  it('happy path: updates escrow + RFQ + writes event', async () => {
+  it('happy path: marks escrow confirmed + writes event (RFQ already in_progress in evidence-only mode)', async () => {
     requireRoleMock.mockResolvedValue({ user: { id: 'admin-1' }, role: 'admin' });
     adminMock.setRows('escrow_transactions', [
       {
@@ -84,9 +84,9 @@ describe('adminConfirmInitialDepositAction', () => {
       initial_deposit_confirmed_by: 'admin-1',
     });
 
-    // RFQ → in_progress
+    // RFQ status untouched — already in_progress from signAgreementAction
     const rfqUpdates = adminMock.getUpdates('rfqs');
-    expect(rfqUpdates[0].values).toMatchObject({ status: 'in_progress' });
+    expect(rfqUpdates).toHaveLength(0);
 
     // escrow_event written
     const events = adminMock.getInserts('escrow_events');

@@ -35,13 +35,19 @@ export function formatDate(
   }).format(d);
 }
 
-export function formatDateShort(date: Date | string | null | undefined): string {
+export function formatDateShort(
+  date: Date | string | null | undefined,
+  locale: string = 'ar'
+): string {
   const d = toValidDate(date);
   if (!d) return PLACEHOLDER;
-  return new Intl.DateTimeFormat('en-SA', {
+  // Compact day-month-year. For Arabic UI we use ar-SA (Arabic-Indic digits +
+  // Arabic month abbreviations like "أبريل 2026"). For English we use en-SA
+  // which yields the regional dd/mm/yyyy.
+  return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
     year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    month: 'short',
+    day: 'numeric',
   }).format(d);
 }
 
@@ -54,6 +60,18 @@ export function formatPhone(phone: string | null | undefined): string {
   if (digits.length < 9) return phone;
 
   return `+966 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 9)}`;
+}
+
+/**
+ * Format a Saudi IBAN (SA + 22 digits = 24 chars total) into 4-digit blocks
+ * for readability: "SA00 0000 0000 0000 0000 0000".
+ * Returns the input unchanged if it doesn't match the expected shape.
+ */
+export function formatIban(iban: string | null | undefined): string {
+  if (!iban || typeof iban !== 'string') return PLACEHOLDER;
+  const clean = iban.replace(/\s+/g, '').toUpperCase();
+  if (!/^SA\d{22}$/.test(clean)) return iban;
+  return clean.match(/.{1,4}/g)?.join(' ') ?? iban;
 }
 
 export function formatRfqNumber(num: string | null | undefined): string {

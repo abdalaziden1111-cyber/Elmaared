@@ -2,6 +2,13 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
+import {
+  RFQ_STATUS_LABEL,
+  SERVICE_LABEL,
+  CITY_LABEL,
+  RFQ_FIELD_LABEL,
+  formatRfqDetailValue,
+} from '@/lib/constants/labels';
 import { SubmitDeliveryForm } from './submit-delivery-form';
 import { OpenDisputeForm } from '@/components/dispute/open-dispute-form';
 
@@ -29,19 +36,6 @@ interface RfqDetail {
   proposals_deadline: string | null;
   winning_proposal_id: string | null;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'مسودة',
-  open: 'مفتوح',
-  negotiating: 'قيد التفاوض',
-  awarded: 'تم الاختيار',
-  in_escrow: 'قيد الضمان',
-  in_progress: 'قيد التنفيذ',
-  delivered: 'تم التسليم',
-  completed: 'مكتمل',
-  disputed: 'نزاع',
-  cancelled: 'ملغى',
-};
 
 export default async function SupplierRfqDetailPage({
   params,
@@ -129,12 +123,15 @@ export default async function SupplierRfqDetailPage({
           </h1>
         </div>
         <span className="shrink-0 rounded-full bg-[var(--color-stone-100)] px-3 py-1 text-xs">
-          {STATUS_LABEL[rfq.status] ?? rfq.status}
+          {RFQ_STATUS_LABEL[rfq.status] ?? rfq.status}
         </span>
       </div>
 
       <div className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
-        {rfq.exhibition_city ? <Field label="المدينة" value={rfq.exhibition_city} /> : null}
+        <Field label="نوع الخدمة" value={SERVICE_LABEL[rfq.service_type] ?? rfq.service_type} />
+        {rfq.exhibition_city ? (
+          <Field label="المدينة" value={CITY_LABEL[rfq.exhibition_city] ?? rfq.exhibition_city} />
+        ) : null}
         {rfq.exhibition_date ? (
           <Field label="تاريخ المعرض" value={formatDate(rfq.exhibition_date)} />
         ) : null}
@@ -161,8 +158,8 @@ export default async function SupplierRfqDetailPage({
         <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           {Object.entries(rfq.details).map(([k, v]) => (
             <li key={k} className="flex justify-between rounded-lg bg-white p-3">
-              <span className="text-[var(--color-stone-600)]">{k}</span>
-              <span className="font-medium">{String(v)}</span>
+              <span className="text-[var(--color-stone-600)]">{RFQ_FIELD_LABEL[k] ?? k}</span>
+              <span className="font-medium">{formatRfqDetailValue(k, v, formatDate)}</span>
             </li>
           ))}
         </ul>
