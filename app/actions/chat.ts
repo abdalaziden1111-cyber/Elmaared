@@ -32,11 +32,14 @@ export async function shortlistProposalAction(
     return { ok: false, error: 'ليس لديك صلاحية على هذا العرض.' };
   }
 
-  // Mark the proposal as shortlisted
-  await admin.from('proposals').update({ status: 'shortlisted' }).eq('id', proposal.id);
-
-  // Try to create the chat — DB trigger enforces 4-chat cap and the unique
-  // (rfq_id, supplier_id) constraint prevents duplicates.
+  // SAVEPOINT-equivalent ordering (Phase Z2 Item 3): create the chat FIRST,
+  // and only flip the proposal status if the chat insert succeeded. Reversing
+  // the original order avoids stranding a `shortlisted` proposal when the
+  // chat-cap trigger raises or any other insert error happens.
+  //
+  // The DB enforces two invariants:
+  //   - trg_chat_cap (BEFORE INSERT) raises CHAT_CAP_REACHED at the 5th chat
+  //   - unique (rfq_id, supplier_id) makes the action idempotent
   const { data: chatRowRaw, error: chatErr } = await admin
     .from('chats')
     .insert({
@@ -46,16 +49,16 @@ export async function shortlistProposalAction(
     })
     .select('id')
     .single();
-  const chat = chatRowRaw as { id: string } | null;
+  let chat = chatRowRaw as { id: string } | null;
 
   if (chatErr || !chat) {
-    // The DB trigger raises a custom message — keep the special-case check
-    // because mapPostgresError doesn't know about app-level invariants.
     if ((chatErr as { message?: string } | null)?.message?.includes('CHAT_CAP_REACHED')) {
       return { ok: false, error: 'وصلت للحد الأقصى من المحادثات (4) لهذا الطلب.' };
     }
     if (isDuplicateError(chatErr)) {
-      // Already exists — make the action idempotent by returning the existing chat
+      // Already exists — fold into the success path so the status flip below
+      // also runs (recovers from a half-finished earlier attempt that got
+      // past the chat insert but failed before flipping the proposal).
       const { data: existingRaw } = await admin
         .from('chats')
         .select('id')
@@ -63,13 +66,25 @@ export async function shortlistProposalAction(
         .eq('supplier_id', proposal.supplier_id)
         .single();
       const existing = existingRaw as { id: string } | null;
-      if (existing) {
-        revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}/compare`);
-        return { ok: true, data: { chatId: existing.id } };
+      if (!existing) {
+        const friendly = mapPostgresError(chatErr, 'فتح المحادثة');
+        return { ok: false, error: friendly.messageAr };
       }
+      chat = existing;
+    } else {
+      const friendly = mapPostgresError(chatErr, 'فتح المحادثة');
+      return { ok: false, error: friendly.messageAr };
     }
-    const friendly = mapPostgresError(chatErr, 'فتح المحادثة');
-    return { ok: false, error: friendly.messageAr };
+  }
+
+  // Chat exists now — flip the proposal to shortlisted. Skipping when the
+  // status is already shortlisted keeps re-runs cheap and avoids touching
+  // updated_at unnecessarily.
+  if (proposal.status !== 'shortlisted') {
+    await admin
+      .from('proposals')
+      .update({ status: 'shortlisted' })
+      .eq('id', proposal.id);
   }
 
   // Move RFQ to negotiating on first chat (idempotent)
