@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatDateShort } from '@/lib/utils/format';
 import { SERVICE_LABEL_LONG as SERVICE_LABEL, CITY_LABEL } from '@/lib/constants/labels';
+import { flags } from '@/lib/feature-flags';
+import {
+  IdentityBadges,
+  type IdentityBadgeSignals,
+} from '@/components/trust/identity-badges';
 
 interface SupplierProfile {
   id: string;
@@ -74,6 +79,31 @@ export default async function PublicSupplierProfilePage({
 
   const admin = createAdminClient();
 
+  // Identity Trust signals (Sprint 3 S3.1, flag-gated). When the table
+  // doesn't exist yet (pre-migration #3) or the supplier has no row, we
+  // pass null and the IdentityBadges component renders its loading
+  // placeholder. The select() call is safe — Postgres won't error on a
+  // missing row; only a missing column would error.
+  let trustSignals: IdentityBadgeSignals | null = null;
+  if (flags.TRUST_ARCHITECTURE) {
+    const { data: signalsRaw } = await admin
+      .from('supplier_trust_signals')
+      .select(
+        'identity_verified, zatca_verified, gov_id_verified, photo_id_uploaded, references_count',
+      )
+      .eq('supplier_id', s.id)
+      .maybeSingle();
+    if (signalsRaw) {
+      trustSignals = {
+        identityVerified: signalsRaw.identity_verified,
+        zatcaVerified: signalsRaw.zatca_verified,
+        govIdVerified: signalsRaw.gov_id_verified,
+        photoIdUploaded: signalsRaw.photo_id_uploaded,
+        referencesCount: signalsRaw.references_count,
+      };
+    }
+  }
+
   const { data: portfolioRaw } = await admin
     .from('supplier_portfolio')
     .select(
@@ -138,6 +168,13 @@ export default async function PublicSupplierProfilePage({
         ) : null}
         {s.team_size ? <Stat label="حجم الفريق" value={String(s.team_size)} /> : null}
       </div>
+
+      {/* Trust Layer 1 — Identity badges (Sprint 3 S3.1) */}
+      {flags.TRUST_ARCHITECTURE ? (
+        <div className="mt-6">
+          <IdentityBadges signals={trustSignals} />
+        </div>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="text-base font-semibold text-[var(--color-midnight-green)]">

@@ -9,6 +9,10 @@ import { ConfidenceBadge } from '@/components/ai/confidence-badge';
 import { MarketRange } from '@/components/ai/market-range';
 import { AIFallback } from '@/components/ai/ai-fallback';
 import { AIDisagreeButton } from '@/components/ai/ai-disagree-button';
+import {
+  IdentityBadges,
+  type IdentityBadgeSignals,
+} from '@/components/trust/identity-badges';
 import { flags } from '@/lib/feature-flags';
 import type { AiConfidenceLevel } from '@/lib/supabase/types';
 import { ShortlistButton } from './shortlist-button';
@@ -87,6 +91,34 @@ export default async function ComparePage({
   const marketRef = proposals.find((p) => p.ai_confidence != null);
   const showAiConfidenceUi = flags.AI_CONFIDENCE_UI;
 
+  // Trust Layer 1 (Sprint 3 S3.1) — fetch identity signals in one batched
+  // query keyed by every supplier appearing in the proposal list. Skipped
+  // entirely when FF_TRUST is off so the migration-not-applied path stays
+  // a no-op.
+  const trustSignalsBySupplier = new Map<string, IdentityBadgeSignals>();
+  if (flags.TRUST_ARCHITECTURE && proposals.length > 0) {
+    const supplierIds = Array.from(
+      new Set(proposals.map((p) => p.supplier?.id).filter(Boolean) as string[]),
+    );
+    if (supplierIds.length > 0) {
+      const { data: signalRows } = await admin
+        .from('supplier_trust_signals')
+        .select(
+          'supplier_id, identity_verified, zatca_verified, gov_id_verified, photo_id_uploaded, references_count',
+        )
+        .in('supplier_id', supplierIds);
+      for (const row of signalRows ?? []) {
+        trustSignalsBySupplier.set(row.supplier_id, {
+          identityVerified: row.identity_verified,
+          zatcaVerified: row.zatca_verified,
+          govIdVerified: row.gov_id_verified,
+          photoIdUploaded: row.photo_id_uploaded,
+          referencesCount: row.references_count,
+        });
+      }
+    }
+  }
+
   return (
     <div>
       <Breadcrumbs
@@ -151,6 +183,15 @@ export default async function ComparePage({
                       <span>· {p.supplier.total_completed_orders} مشروع</span>
                     ) : null}
                   </div>
+                  {/* Trust Layer 1 (compact) — identity badges in the row header (Sprint 3 S3.5) */}
+                  {flags.TRUST_ARCHITECTURE && p.supplier ? (
+                    <div className="mt-2">
+                      <IdentityBadges
+                        signals={trustSignalsBySupplier.get(p.supplier.id) ?? null}
+                        compact
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="shrink-0 text-end">
                   <div className="text-lg font-semibold text-[var(--color-midnight-green)] num">

@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIban } from '@/lib/utils/format';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { trustName, trustLegalTooltip } from '@/lib/i18n/trust-name';
+import { TrustBar } from '@/components/trust/trust-bar';
+import { flags } from '@/lib/feature-flags';
 import { ReceiptUploadForm } from './receipt-upload-form';
 import { ApproveDeliveryButton } from './approve-delivery-button';
 
@@ -114,6 +116,13 @@ export default async function ClientEscrowPage({
         <span className="font-medium text-[var(--color-midnight-green)]">{trustLabel}</span>
         {' '}— {trustLegalTooltip('ar')}
       </p>
+
+      {/* Trust Layer 3 — Outcome reassurance bar (Sprint 3 S3.3) */}
+      {flags.TRUST_ARCHITECTURE ? (
+        <div className="mt-4">
+          <TrustBar />
+        </div>
+      ) : null}
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2">
         <Stat label="إجمالي الاتفاق" value={formatCurrency(tx.total_amount)} />
