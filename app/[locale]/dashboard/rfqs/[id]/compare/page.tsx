@@ -60,27 +60,32 @@ export default async function ComparePage({
   // ownership manually. requireRole already proved the user is a client.
   const admin = createAdminClient();
 
-  const { data: rfqRowRaw } = await admin
-    .from('rfqs')
-    .select('id, rfq_number, title, client_id')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .single();
+  // Sprint 6 S6.2 — RFQ ownership check and proposal SELECT are independent
+  // queries; the ownership guard runs in-process after both return. Fan out
+  // both Supabase round-trips in parallel. If ownership fails we waste a
+  // single proposals SELECT — trivial cost on the rare 404 path.
+  const [{ data: rfqRowRaw }, { data: proposalsRaw }] = await Promise.all([
+    admin
+      .from('rfqs')
+      .select('id, rfq_number, title, client_id')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single(),
+    admin
+      .from('proposals')
+      .select(
+        `id, total_price, delivery_days, description, ai_score, ai_summary, ai_strengths, ai_concerns,
+         ai_confidence, ai_sample_size, ai_variance_pct, ai_price_range_min, ai_price_range_max,
+         status, created_at,
+         supplier:suppliers (id, company_name, average_rating, total_completed_orders)`,
+      )
+      .eq('rfq_id', id)
+      .order('ai_score', { ascending: false, nullsFirst: false }),
+  ]);
   const rfq = rfqRowRaw as
     | { id: string; rfq_number: string; title: string; client_id: string }
     | null;
   if (!rfq || rfq.client_id !== user.id) notFound();
-
-  const { data: proposalsRaw } = await admin
-    .from('proposals')
-    .select(
-      `id, total_price, delivery_days, description, ai_score, ai_summary, ai_strengths, ai_concerns,
-       ai_confidence, ai_sample_size, ai_variance_pct, ai_price_range_min, ai_price_range_max,
-       status, created_at,
-       supplier:suppliers (id, company_name, average_rating, total_completed_orders)`
-    )
-    .eq('rfq_id', id)
-    .order('ai_score', { ascending: false, nullsFirst: false });
 
   const proposals = (proposalsRaw ?? []) as unknown as ProposalRow[];
 
