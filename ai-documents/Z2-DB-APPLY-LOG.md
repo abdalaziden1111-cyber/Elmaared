@@ -98,4 +98,9 @@ when the DB caught up.
 
 ### Applied
 
-- _pending — user paste required_
+- **2026-05-19 19:11:57 UTC** — all 7 migrations applied via **Chrome MCP**
+  in a regular (non-incognito) Chrome window. Studio prompted "Potential
+  issues detected" (tracker table without RLS — intentional, ops-internal);
+  chose "Run without RLS". Verification probe:
+  `pnpm exec node scripts/verify-pending-migrations.mjs` → 12/12 ✅,
+  tracker shows 7 rows at identical timestamp. Phase U1 closed.
