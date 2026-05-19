@@ -80,7 +80,9 @@ describe('formatDate', () => {
 describe('formatDateShort', () => {
   it('formats valid date', () => {
     const out = formatDateShort('2026-09-15');
-    expect(out).toMatch(/2026/);
+    // Default locale 'ar' uses ar-SA which renders Arabic-Indic numerals
+    // (٢٠٢٦). Accept either form so a numerals-toggle later doesn't break.
+    expect(out).toMatch(/2026|٢٠٢٦/);
   });
 
   it('returns placeholder for invalid', () => {

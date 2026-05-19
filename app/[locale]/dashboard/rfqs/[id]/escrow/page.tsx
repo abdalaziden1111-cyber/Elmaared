@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIban } from '@/lib/utils/format';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { trustName, trustLegalTooltip } from '@/lib/i18n/trust-name';
 import { ReceiptUploadForm } from './receipt-upload-form';
 import { ApproveDeliveryButton } from './approve-delivery-button';
 
@@ -87,6 +88,8 @@ export default async function ClientEscrowPage({
     }
   }
 
+  const trustLabel = trustName('ar');
+
   return (
     <div className="mx-auto max-w-3xl">
       <Breadcrumbs
@@ -94,7 +97,7 @@ export default async function ClientEscrowPage({
           { href: '/dashboard', label: 'لوحة التحكم' },
           { href: '/dashboard/rfqs', label: 'طلباتي' },
           { href: `/dashboard/rfqs/${rfqId}`, label: 'الطلب' },
-          { label: 'الضمان' },
+          { label: trustLabel },
         ]}
       />
       <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">
@@ -103,6 +106,13 @@ export default async function ClientEscrowPage({
       <p className="mt-2 text-sm text-[var(--color-stone-600)]">
         النظام الحالي: تحوّل المبلغ مباشرةً للمورد ثم ترفع إيصال البنك كإثبات. المسؤول يراجع
         الإيصال للأرشفة والحوكمة، لا يمسك المنصة بالأموال.
+      </p>
+      <p
+        className="mt-2 text-xs text-[var(--color-stone-600)]"
+        title={trustLegalTooltip('ar')}
+      >
+        <span className="font-medium text-[var(--color-midnight-green)]">{trustLabel}</span>
+        {' '}— {trustLegalTooltip('ar')}
       </p>
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2">

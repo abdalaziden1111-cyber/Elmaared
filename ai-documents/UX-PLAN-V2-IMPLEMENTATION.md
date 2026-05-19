@@ -1,0 +1,122 @@
+# UX Plan v2 — Implementation Tracker (Unified)
+
+**Source plan:** `/Users/rakanrakan/.claude/plans/users-rakanrakan-downloads-ux-design-pl-snuggly-brooks.md`
+**Source HTML:** `/Users/rakanrakan/Downloads/UX_Design_Plan_v2.html`
+**Started:** 2026-05-19
+
+This file is the **single source of truth** for what's live and what's in flight across Sprints 1-6. Per-sprint deep reports stay as historical record (`SPRINT-0-REPORT.md`, etc.) — this is the umbrella.
+
+---
+
+## Status Dashboard
+
+| Sprint | Status | Items | Verified | Notes |
+|--------|--------|-------|----------|-------|
+| Pre-Sprint 0 | ✅ Done | F.1, F.1b, F.2, F.3 | ✅ | Feature flags + analytics + research tracker |
+| Sprint 0 | ✅ Done | S0.1, S0.2, S0.3 | ✅ | Competitor badge, Escrow→أمانة (flag), microcopy |
+| **Sprint 1** | 🟡 In progress | S1.0–S1.7 | — | Amanah-default cleanup + AI Confidence |
+| Sprint 2 | ⏳ Queued | S2.1–S2.4 | — | RFQ Wizard → Single-Screen |
+| Sprint 3 | ⏳ Queued | S3.1–S3.5 | — | Trust Architecture (4 layers) |
+| Sprint 4 | ⏳ Queued | S4.1–S4.8 | — | Saudi Cultural Layer |
+| Sprint 5 | ⏳ Queued | S5.1–S5.4 | — | Failure Modes + Concierge + Regulatory |
+| Sprint 6 | ⏳ Queued | S6.1–S6.9 | — | Performance / Core Web Vitals |
+
+**Deferred (Future Work):** WCAG 2.2 AAA upgrade (Δ3, post-launch sprint).
+
+---
+
+## Live Feature Flags
+
+Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (dev) or Vercel env (prod). No redeploy required.
+
+| Flag | Sprint | Status | Notes |
+|------|--------|--------|-------|
+| `FF_AMANAH` | Sprint 0 → **removed in S1.0** | 🚫 Retired (2026-05-19) | Amanah is the canonical default. |
+| `FF_AI_CONFIDENCE` | Sprint 1 | _Not yet wired_ | 4-level visual badge |
+| `FF_RFQ_SINGLE_SCREEN` | Sprint 2 | _Not yet wired_ | Single-screen RFQ |
+| `FF_TRUST` | Sprint 3 | _Not yet wired_ | Identity + Process + Outcome bars |
+| `FF_CELEBRATION` | Sprint 3 | _Not yet wired_ | Confetti + milestones |
+| `FF_HIJRI` | Sprint 4 | _Not yet wired_ | Hijri-default dates |
+| `FF_PRAYER` | Sprint 4 | _Not yet wired_ | Prayer times widget |
+| `FF_NUMERALS` | Sprint 4 | _Not yet wired_ | Arabic-Indic digits |
+| `FF_CONCIERGE` | Sprint 5 | _Not yet wired_ | "فريقنا يبحث لك" copy switch |
+| `FF_PDPL` | Sprint 5 | _Not yet wired_ | PDPL consent banner |
+
+---
+
+## Sprint 1 — Amanah-default + AI Confidence Framework
+
+**Started:** 2026-05-19
+
+### S1.0 — Amanah-default cleanup (Δ1) ✅
+
+**Done:** retired the `FF_AMANAH` flag and made "أمانة Elmaared™" the canonical name. Admin surfaces still say "Escrow" (legal context — untouched).
+
+**Changes:**
+- [`lib/feature-flags.ts`](../lib/feature-flags.ts) — removed `ESCROW_AMANAH_NAMING` flag; left a comment pointer to `trust-name.ts`.
+- [`lib/i18n/trust-name.ts`](../lib/i18n/trust-name.ts) — collapsed dual-state branches to constant tables. Public API unchanged (`trustName`, `inTrustStatusLabel`, `trustLegalTooltip` still return the same shape).
+- [`lib/i18n/messages/ar.json`](../lib/i18n/messages/ar.json) + [`en.json`](../lib/i18n/messages/en.json):
+  - `marketing.valueProps.items.escrow{Title,Body}` values now hold the Amanah copy; duplicate `amanah*` keys deleted.
+  - `marketing.forClients.features.escrow{Title,Body}` same treatment.
+  - `rfqs.status.in_escrow` value flipped to "قيد أمانة Elmaared" / "In Elmaared Trust"; `in_amanah` removed.
+- [`app/[locale]/(marketing)/page.tsx`](../app/[locale]/(marketing)/page.tsx) — removed `flags` import and the ternary block in the value-props grid; now reads the canonical `escrowTitle/escrowBody`.
+- [`app/[locale]/(marketing)/for-clients/page.tsx`](../app/[locale]/(marketing)/for-clients/page.tsx) — removed `flags` import, `trustKey` ternary; reads `features.escrowTitle/escrowBody`.
+- [`components/ui/status-pill.tsx`](../components/ui/status-pill.tsx) — comment updated to reflect canonical (no flag) behavior.
+- [`tests/unit/i18n/trust-name.test.ts`](../tests/unit/i18n/trust-name.test.ts) — rewrote 10 dual-state tests as 7 canonical-only tests (single `describe` per function).
+
+**Verification:**
+- `pnpm typecheck` ✅ clean.
+- `pnpm test` ✅ **871/871 pass** (was 874; -3 from the dropped FF_AMANAH=false branch tests).
+- `pnpm lint` on touched files ✅ clean. (Pre-existing `<a>` errors in `app/[locale]/supplier/rfqs/[id]/page.tsx` and `for-suppliers/page.tsx` are unrelated — not introduced by S1.0, not in any file I touched.)
+- Browser, no `FF_AMANAH` set anywhere:
+  - `/ar` landing → value-props grid heading reads **"أمانة Elmaared™ — أموالك بأمان"** ✅
+  - `/ar/for-clients` → features grid heading reads **"أمانة Elmaared™"** ✅
+  - Neither page shows "ضمان نقدي" or "ضمان كامل" anywhere.
+- grep `FF_AMANAH | ESCROW_AMANAH_NAMING` outside doc comments → **0 functional refs**.
+
+**Why this was the first task in Sprint 1:** every downstream sprint (1.1+, 2, 3, 4, 5) reads from `lib/i18n/trust-name.ts`. Simplifying it once now avoids 5 downstream branches to maintain.
+
+
+
+### S1.1 — AI Schema confidence metadata
+_pending_
+
+### S1.2 — ConfidenceBadge component
+_pending_
+
+### S1.3 — MarketRange component
+_pending_
+
+### S1.4 — AIDisagreeButton + ai_feedback table
+_pending_
+
+### S1.5 — AIFallback component
+_pending_
+
+### S1.6 — AIOverride + Bias Disclosure page
+_pending_
+
+### S1.7 — Apply to compare page
+_pending_
+
+---
+
+## Commit Log
+
+_(populated as each task lands; one focused commit per S*.X — Δ8)_
+
+| Task | Hash | Subject |
+|------|------|---------|
+| _none yet_ | | |
+
+---
+
+## Preservation Gates (re-checked after every Sprint)
+
+| Gate | Baseline | Current |
+|------|----------|---------|
+| Tests | 874/874 (after Sprint 0) | _TBD_ |
+| Typecheck | clean | _TBD_ |
+| Lint | 0 errors in touched files | _TBD_ |
+| Sprint 0 work | intact | _TBD_ |
+| `ai-documents/DEEP-AUDIT-REPORT.md` items | passing | _TBD_ |

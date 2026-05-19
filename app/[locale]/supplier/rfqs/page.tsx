@@ -78,6 +78,35 @@ export default async function SupplierRfqsListPage({
     rows = (rowsRaw ?? []) as unknown as RfqRow[];
   }
 
+  // Competitor counts per RFQ (Soft Urgency — Plan v2 decision #03).
+  // "X competing suppliers" badge shown only on the supplier side, never on
+  // the buyer side (the buyer-side version was rejected by the committee).
+  // We exclude the current supplier's own proposals and withdrawn ones, then
+  // count distinct supplier_ids per rfq_id.
+  const competitorCount = new Map<string, number>();
+  if (rows.length > 0 && supplier?.id) {
+    const rfqIds = rows.map((r) => r.id);
+    const { data: propsRaw } = await admin
+      .from('proposals')
+      .select('rfq_id, supplier_id, status')
+      .in('rfq_id', rfqIds)
+      .neq('supplier_id', supplier.id)
+      .neq('status', 'withdrawn');
+    const props = (propsRaw ?? []) as Array<{
+      rfq_id: string;
+      supplier_id: string;
+    }>;
+    const seen = new Map<string, Set<string>>();
+    for (const p of props) {
+      const set = seen.get(p.rfq_id) ?? new Set<string>();
+      set.add(p.supplier_id);
+      seen.set(p.rfq_id, set);
+    }
+    for (const [rfqId, suppliers] of seen) {
+      competitorCount.set(rfqId, suppliers.size);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
@@ -104,35 +133,51 @@ export default async function SupplierRfqsListPage({
       ) : (
         <>
           <ul className="mt-6 grid gap-3">
-            {rows.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/supplier/rfqs/${r.id}`}
-                  className="block rounded-2xl border border-[var(--color-stone-300)] bg-white p-5 hover:border-[var(--color-action-blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-action-blue)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs text-[var(--color-stone-600)] num">{r.rfq_number}</div>
-                      <h2 className="mt-0.5 text-base font-semibold">{r.title}</h2>
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--color-stone-600)]">
-                        <span>{SERVICE_LABEL[r.service_type] ?? r.service_type}</span>
-                        {r.exhibition_city ? (
-                          <span>· {CITY_LABEL[r.exhibition_city] ?? r.exhibition_city}</span>
-                        ) : null}
-                        {r.budget_max ? (
-                          <span>· حتى {r.budget_max.toLocaleString('en')} ﷼</span>
+            {rows.map((r) => {
+              const competitors = competitorCount.get(r.id) ?? 0;
+              return (
+                <li key={r.id}>
+                  <Link
+                    href={`/supplier/rfqs/${r.id}`}
+                    className="block rounded-2xl border border-[var(--color-stone-300)] bg-white p-5 hover:border-[var(--color-action-blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-action-blue)]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-xs text-[var(--color-stone-600)] num">{r.rfq_number}</div>
+                        <h2 className="mt-0.5 text-base font-semibold">{r.title}</h2>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--color-stone-600)]">
+                          <span>{SERVICE_LABEL[r.service_type] ?? r.service_type}</span>
+                          {r.exhibition_city ? (
+                            <span>· {CITY_LABEL[r.exhibition_city] ?? r.exhibition_city}</span>
+                          ) : null}
+                          {r.budget_max ? (
+                            <span>· حتى {r.budget_max.toLocaleString('en')} ﷼</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-end text-xs text-[var(--color-stone-600)]">
+                        {r.proposals_deadline ? (
+                          <>آخر موعد:<br />{formatDateShort(r.proposals_deadline)}</>
                         ) : null}
                       </div>
                     </div>
-                    <div className="shrink-0 text-end text-xs text-[var(--color-stone-600)]">
-                      {r.proposals_deadline ? (
-                        <>آخر موعد:<br />{formatDateShort(r.proposals_deadline)}</>
-                      ) : null}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--color-stone-100)] pt-3 text-xs">
+                      {competitors === 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success-100,#dcfce7)] px-2.5 py-1 font-semibold text-[var(--color-success,#15803d)]">
+                          <span aria-hidden>⚡</span>
+                          أنت أول مزوّد متقدّم — كن سريعاً
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-warning-100,#fef3c7)] px-2.5 py-1 font-semibold text-[var(--color-warning,#92400e)]">
+                          <span aria-hidden>👥</span>
+                          في <span className="num">{competitors}</span> مزوّد منافس
+                        </span>
+                      )}
                     </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
           <Pagination
             currentPage={page}

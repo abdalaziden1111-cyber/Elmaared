@@ -40,7 +40,9 @@ describe('shortlistProposalAction', () => {
 
   it('rejects when caller does not own the RFQ', async () => {
     supabaseMock.setUser({ id: 'usr-attacker' });
-    supabaseMock.setRows('proposals', [
+    // Proposal lookup goes through the admin client (RLS workaround in
+    // shortlistProposalAction), so seed adminMock, not supabaseMock.
+    adminMock.setRows('proposals', [
       {
         id: 'prop-1',
         rfq_id: 'rfq-1',
@@ -57,7 +59,8 @@ describe('shortlistProposalAction', () => {
 
   it('returns CHAT_CAP_REACHED with friendly message', async () => {
     supabaseMock.setUser({ id: 'usr-1' });
-    supabaseMock.setRows('proposals', [
+    // Proposal lookup uses adminMock — see comment above.
+    adminMock.setRows('proposals', [
       {
         id: 'prop-1',
         rfq_id: 'rfq-1',

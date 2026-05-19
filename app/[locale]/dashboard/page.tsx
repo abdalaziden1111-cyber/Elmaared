@@ -8,6 +8,7 @@ import {
   SERVICE_LABEL,
   RFQ_STATUS_TONE,
 } from '@/lib/constants/labels';
+import { inTrustStatusLabel } from '@/lib/i18n/trust-name';
 
 const UPCOMING_EXHIBITIONS = [
   { name: 'LEAP 2027', date: '2027-02-08', city: 'الرياض' },
@@ -312,13 +313,15 @@ function Kpi({
 }
 
 function StatusChip({ status }: { status: string }) {
+  const label =
+    status === 'in_escrow' ? inTrustStatusLabel('ar') : STATUS_LABEL[status] ?? status;
   return (
     <span
       className={`inline-flex h-7 shrink-0 items-center rounded-full px-3 text-xs font-medium ${
         RFQ_STATUS_TONE[status] ?? RFQ_STATUS_TONE.draft
       }`}
     >
-      {STATUS_LABEL[status] ?? status}
+      {label}
     </span>
   );
 }

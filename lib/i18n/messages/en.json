@@ -17,7 +17,17 @@
     "no": "No",
     "close": "Close",
     "download": "Download",
-    "upload": "Upload"
+    "upload": "Upload",
+    "states": {
+      "loadingProposals": "Lining up the best offers for you...",
+      "loadingPayment": "Transferring securely...",
+      "loadingAi": "AI is analyzing the offer for you...",
+      "bankUnresponsive": "The bank didn't respond. Your funds are safe — try again in 5 minutes or message us.",
+      "rfqSubmitted": "Your request reached suppliers. Offers arrive within 24 hours.",
+      "confirmDestructive": "This will cancel the supplier's preparation. Continue?",
+      "noEvents": "Time for your first event. Tap here to begin.",
+      "savedAutomatically": "Saved automatically"
+    }
   },
   "auth": {
     "login": "Log in",
@@ -64,8 +74,8 @@
         "verifiedBody": "Every supplier passes a review (commercial registration, VAT, track record) before going live.",
         "aiTitle": "AI scoring per offer",
         "aiBody": "We score every offer on 5 axes and summarize strengths and risks in Arabic.",
-        "escrowTitle": "Full cash escrow",
-        "escrowBody": "50% on kickoff + 50% after delivery. Your money sits with the platform until you accept.",
+        "escrowTitle": "Elmaared Trust™ — your money is safe",
+        "escrowBody": "50% on kickoff + 50% after delivery. Your funds are held in Elmaared Trust™ (Escrow Service) until you personally accept delivery.",
         "panicTitle": "Panic button",
         "panicBody": "If a supplier stalls or a dispute opens, hit escalate and the ops team responds within 30 minutes.",
         "feesTitle": "Transparent fees",
@@ -157,8 +167,8 @@
       "features": {
         "feeTitle": "5% commission only",
         "feeBody": "2% from you, 3% from the supplier. No subscriptions, no hidden fees.",
-        "escrowTitle": "Full escrow protection",
-        "escrowBody": "Your money sits in escrow until you accept the delivery.",
+        "escrowTitle": "Elmaared Trust™",
+        "escrowBody": "Your funds stay in Elmaared Trust™ until you accept the delivery.",
         "verifiedTitle": "Verified suppliers",
         "verifiedBody": "Every supplier is reviewed before going live. Commercial registration + ratings.",
         "aiTitle": "AI evaluation per offer",
@@ -355,7 +365,7 @@
       "open": "Open",
       "negotiating": "Negotiating",
       "awarded": "Awarded",
-      "in_escrow": "In Escrow",
+      "in_escrow": "In Elmaared Trust",
       "in_progress": "In Progress",
       "delivered": "Delivered",
       "completed": "Completed",
