@@ -237,6 +237,14 @@ class QueryBuilder {
     return this;
   }
 
+  // Mock treats upsert as an insert for routing purposes — the conflict
+  // resolution (`onConflict`) is a DB concern we don't simulate. The mock
+  // honors `setError(table, 'insert', ...)` for both insert and upsert so
+  // tests can exercise either path with the same hook.
+  upsert(values: MockedRow | MockedRow[], _opts?: unknown) {
+    return this.insert(values);
+  }
+
   update(values: MockedRow) {
     this.op = 'update';
     this.updateValues = values;

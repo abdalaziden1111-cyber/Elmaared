@@ -46,6 +46,8 @@ type ProposalStatus =
 // 4 buckets matching the visual badges 🟢🔵🟡⚪. See lib/ai/confidence.ts
 // for the derivation rules.
 export type AiConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
+// UX Plan v2 Decision #01 — user pushback bucket (Sprint 1 S1.4).
+export type AiFeedbackReason = 'price_too_high' | 'price_too_low' | 'illogical';
 type EscrowStatus =
   | 'awaiting_deposit'
   | 'deposit_received'
@@ -466,6 +468,16 @@ interface AuditLogRow {
   created_at: string;
 }
 
+interface AiFeedbackRow {
+  id: string;
+  proposal_id: string;
+  user_id: string;
+  reason: AiFeedbackReason;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface CeoAccessRow {
   id: string;
   company_id: string;
@@ -499,6 +511,7 @@ export interface Database {
       notifications: RowToTable<NotificationRow>;
       audit_logs: RowToTable<AuditLogRow>;
       ceo_access: RowToTable<CeoAccessRow>;
+      ai_feedback: RowToTable<AiFeedbackRow>;
     };
     Views: {
       active_rfqs: { Row: RfqRow };
@@ -514,6 +527,8 @@ export interface Database {
       escrow_status: EscrowStatus;
       notification_type: NotificationType;
       escrow_event_type: EscrowEventType;
+      ai_confidence_level: AiConfidenceLevel;
+      ai_feedback_reason: AiFeedbackReason;
     };
   };
 }

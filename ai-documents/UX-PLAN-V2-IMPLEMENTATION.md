@@ -192,8 +192,47 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 
 
 
-### S1.4 — AIDisagreeButton + ai_feedback table
-_pending_
+### S1.4 — AIDisagreeButton + ai_feedback table ✅
+
+**Done:** Josh Clark's mandate in Debate 01 — "AI must offer pushback" — turns into a 3-reason popover, a Sonner toast confirmation, and a new `ai_feedback` table that captures user disagreement for ML retraining.
+
+**Migration #2:** [supabase/migrations/20261119000002_ai_feedback.sql](../supabase/migrations/20261119000002_ai_feedback.sql)
+- ENUM `ai_feedback_reason` ('price_too_high' | 'price_too_low' | 'illogical').
+- Table `ai_feedback (id, proposal_id, user_id, reason, comment, created_at, updated_at)` with UNIQUE(proposal_id, user_id).
+- 3 indexes: proposal_id, reason, created_at.
+- RLS:
+  - INSERT/UPDATE allowed only when the caller owns the parent RFQ (`r.client_id = auth.uid()`).
+  - SELECT restricted to admins (the table is operational signal, not user-facing content).
+- `update_timestamp()` trigger keeps `updated_at` fresh.
+
+**Server action:** [app/actions/ai-feedback.ts](../app/actions/ai-feedback.ts)
+- Zod schema validates UUID + reason enum + comment ≤ 1000 chars.
+- Re-confirms RFQ ownership through the admin client (matches the chat-action RLS workaround).
+- `upsert()` on `(proposal_id, user_id)` so users can revise without duplicates.
+- Friendly Arabic errors for unauth / missing proposal / ownership / DB failure.
+
+**Component:** [components/ai/ai-disagree-button.tsx](../components/ai/ai-disagree-button.tsx)
+- Trigger chip: "أنا لا أوافق" + thumbs-down icon, focus-visible ring on warning token.
+- Popover (Radix): three radio reasons + optional textarea + cancel/submit buttons.
+- `useTransition` keeps the submit button reactive; Sonner toast confirms success.
+- Idempotent UX: after a successful submit the trigger disables with "تم استلام ملاحظتك".
+- Sets a stable radio `name` per `proposalId` so multiple badges on one page don't clash.
+
+**Mock tooling:** added `upsert()` to `tests/mocks/supabase-mock.ts` (routes to the existing `insert` plumbing — conflict resolution is a DB concern not simulated). Available to every other action test going forward.
+
+**Tests:** [tests/integration/actions/ai-feedback.test.ts](../tests/integration/actions/ai-feedback.test.ts) — 5 cases:
+- Unauth → "يجب تسجيل الدخول".
+- Invalid reason / non-UUID → "بيانات غير صالحة".
+- Caller doesn't own RFQ → "ليست لديك صلاحية".
+- Happy-path upsert → `ok: true`.
+- Missing proposal → "لم نجد".
+
+**Verification:**
+- `pnpm test` ✅ **902/902 pass** (was 897 + 5 new).
+- `pnpm typecheck` ✅ clean.
+- Browser: not rendered yet — wired into the compare-row UI in S1.7.
+
+
 
 ### S1.5 — AIFallback component
 _pending_
@@ -215,6 +254,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | Sprint 0 + S1.0 | `46d9248` | feat(ux-v2): Sprint 0 + S1.0 — quick wins, microcopy, Amanah canonical |
 | S1.1 | `6ae35a3` | feat(s1.1): AI confidence metadata + market-quality columns |
 | S1.2 | `f64658a` | feat(s1.2): ConfidenceBadge component |
+| S1.3 | `b36a1bb` | feat(s1.3): MarketRange component — "عين السوق" price-range bar |
 
 ---
 
