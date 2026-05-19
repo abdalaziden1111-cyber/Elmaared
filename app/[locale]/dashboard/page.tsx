@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { Plus, Compass, FileText, Hourglass, MessageSquare, CheckCircle2, Calendar } from 'lucide-react';
 import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
@@ -10,6 +11,35 @@ import {
 } from '@/lib/constants/labels';
 import { inTrustStatusLabel } from '@/lib/i18n/trust-name';
 import { flags } from '@/lib/feature-flags';
+
+// Sprint 6 S6.1 — "top suppliers" list is user-agnostic + changes rarely.
+// Cache for 5 minutes under the `top-suppliers` tag so admin actions that
+// approve/reject suppliers can call `revalidateTag('top-suppliers')` and
+// flush this without waiting for the TTL.
+const TOP_SUPPLIERS_TTL_SECONDS = 5 * 60;
+const getTopApprovedSuppliers = unstable_cache(
+  async () => {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('suppliers')
+      .select(
+        'id, company_name, specializations, cities, total_completed_orders, average_rating',
+      )
+      .eq('status', 'approved')
+      .order('total_completed_orders', { ascending: false })
+      .limit(4);
+    return (data ?? []) as Array<{
+      id: string;
+      company_name: string;
+      specializations: string[];
+      cities: string[];
+      total_completed_orders: number;
+      average_rating: number | null;
+    }>;
+  },
+  ['top-approved-suppliers-v1'],
+  { revalidate: TOP_SUPPLIERS_TTL_SECONDS, tags: ['top-suppliers'] },
+);
 
 const UPCOMING_EXHIBITIONS = [
   { name: 'LEAP 2027', date: '2027-02-08', city: 'الرياض' },
@@ -24,13 +54,22 @@ export default async function DashboardHomePage() {
   const { user } = await requireRole(['client']);
   const admin = createAdminClient();
 
-  // Aggregate KPIs from the client's RFQs.
-  const { data: rfqsRaw } = await admin
-    .from('rfqs')
-    .select('id, rfq_number, title, service_type, status, created_at, proposals_deadline')
-    .eq('client_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+  // Sprint 6 S6.1 — the two queries below are independent: the buyer's RFQ
+  // list and the global top-suppliers list. Running them in parallel removes
+  // the serial wait and halves the dashboard's server time on cold loads.
+  // `getTopApprovedSuppliers` is unstable_cache'd (5-min TTL, top-suppliers
+  // tag) so most renders skip the DB roundtrip entirely.
+  const [{ data: rfqsRaw }, suggested] = await Promise.all([
+    admin
+      .from('rfqs')
+      .select(
+        'id, rfq_number, title, service_type, status, created_at, proposals_deadline',
+      )
+      .eq('client_id', user.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    getTopApprovedSuppliers(),
+  ]);
   const rfqs = (rfqsRaw ?? []) as Array<{
     id: string;
     rfq_number: string;
@@ -49,23 +88,6 @@ export default async function DashboardHomePage() {
   };
 
   const recent = rfqs.slice(0, 5);
-
-  // Suggested suppliers — top 4 approved suppliers (placeholder until matching
-  // by client industry/city is wired through).
-  const { data: supRaw } = await admin
-    .from('suppliers')
-    .select('id, company_name, specializations, cities, total_completed_orders, average_rating')
-    .eq('status', 'approved')
-    .order('total_completed_orders', { ascending: false })
-    .limit(4);
-  const suggested = (supRaw ?? []) as Array<{
-    id: string;
-    company_name: string;
-    specializations: string[];
-    cities: string[];
-    total_completed_orders: number;
-    average_rating: number | null;
-  }>;
 
   return (
     <div className="space-y-10">
