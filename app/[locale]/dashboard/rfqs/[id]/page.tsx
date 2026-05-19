@@ -172,6 +172,20 @@ export default async function ClientRfqDetailPage({
             >
               الاتفاقية ←
             </Link>
+            {/* Phase U5 — new project execution + day-of pages live for
+                any RFQ that has progressed past 'awarded'. */}
+            <Link
+              href={`/dashboard/rfqs/${rfq.id}/project`}
+              className="font-medium text-[var(--color-action-blue)] hover:underline"
+            >
+              تنفيذ المشروع ←
+            </Link>
+            <Link
+              href={`/dashboard/rfqs/${rfq.id}/event-day`}
+              className="font-medium text-[var(--color-action-blue)] hover:underline"
+            >
+              يوم الحدث ←
+            </Link>
             {awardedInfo.chatId ? (
               <Link
                 href={`/dashboard/rfqs/${rfq.id}/chats/${awardedInfo.chatId}`}

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Building2, CreditCard, Hash, User } from 'lucide-react';
+import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIban } from '@/lib/utils/format';
@@ -244,6 +245,14 @@ export default async function ClientEscrowPage({
               </p>
             </div>
             <ZatcaQrCode tlvBase64={invoice.zatca_qr_code} size={140} />
+          </div>
+          <div className="mt-4">
+            <Link
+              href={`/dashboard/invoices/${invoice.id}`}
+              className="text-xs font-medium text-[var(--color-action-blue)] hover:underline"
+            >
+              عرض الفاتورة الكاملة ←
+            </Link>
           </div>
         </section>
       ) : null}
