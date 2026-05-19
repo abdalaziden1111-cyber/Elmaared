@@ -234,8 +234,49 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 
 
 
-### S1.5 — AIFallback component
-_pending_
+### S1.5 — AIFallback component ✅
+
+**Done:** the user-facing voice of Don Norman + Josh Clark's principle from Debate 01 — "when AI doesn't know, it must say so plainly". A reusable card that names *why* the AI is silent and optionally what to do about it.
+
+**File:** [components/ai/ai-fallback.tsx](../components/ai/ai-fallback.tsx) (~90 LOC).
+
+**Four reasons** with sensible defaults:
+| Reason | Default headline |
+|--------|------------------|
+| `insufficient_data` | "أمامي N صفقة فقط — لا أعرف بعد" (uses sampleSize) OR "لا توجد بيانات كافية بعد — لا أعرف بعد" |
+| `service_error` | "تقييم AI غير متاح مؤقتاً — حاول لاحقاً" |
+| `unsupported` | "هذه الفئة لم نُدرّب AI عليها بعد" |
+| `pending` | "يجري الآن تحليل AI لهذا العرض…" |
+
+Each reason ships a sensible default `whatNext` body. Both can be overridden via props for surfaces that need a tighter copy.
+
+**API:**
+```tsx
+<AIFallback
+  reason="insufficient_data"
+  sampleSize={2}
+  action={{ label: 'اطلب تقديراً مخصصاً', onClick: ... }}
+/>
+```
+
+- `role="status"` + dashed-border card uses `--color-cream` so it sits softly inside any layout without screaming.
+- Action button is optional; when provided it gets full keyboard focus styling.
+- Carries `data-component="ai-fallback"` + `data-reason="..."` for analytics + Playwright selectors.
+
+**Tests:** [tests/unit/components/ai-fallback.test.tsx](../tests/unit/components/ai-fallback.test.tsx) — 8 cases:
+- Sample-size-driven canonical headline (N=2 → "صفقتين", N=1 → "صفقة").
+- Generic fallback when sampleSize is missing.
+- Each reason's headline.
+- Action click forwarding.
+- Custom headline/whatNext overrides.
+- `data-reason` attribute.
+
+**Verification:**
+- `pnpm test` ✅ 910/910 pass (was 902 + 8 new).
+- `pnpm typecheck` ✅ clean.
+- Browser: not rendered yet — wired into the compare page in S1.7 when proposals come back with `ai_confidence = 'unknown'` or service errors.
+
+
 
 ### S1.6 — AIOverride + Bias Disclosure page
 _pending_
@@ -255,6 +296,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S1.1 | `6ae35a3` | feat(s1.1): AI confidence metadata + market-quality columns |
 | S1.2 | `f64658a` | feat(s1.2): ConfidenceBadge component |
 | S1.3 | `b36a1bb` | feat(s1.3): MarketRange component — "عين السوق" price-range bar |
+| S1.4 | `f01ee5a` | feat(s1.4): AIDisagreeButton + ai_feedback table (migration #2) |
 
 ---
 
