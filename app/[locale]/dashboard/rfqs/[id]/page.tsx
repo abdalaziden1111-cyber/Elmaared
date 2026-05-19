@@ -10,6 +10,7 @@ import {
   RFQ_FIELD_LABEL as FIELD_LABEL,
   formatRfqDetailValue,
 } from '@/lib/constants/labels';
+import { flags } from '@/lib/feature-flags';
 import { PublishButton } from './publish-button';
 import { ReviewForm } from './review-form';
 import { OpenDisputeForm } from '@/components/dispute/open-dispute-form';
@@ -222,6 +223,26 @@ export default async function ClientRfqDetailPage({
           ))}
         </ul>
       </section>
+
+      {/* Concierge MVP — Sprint 5 S5.3. Replaces the implicit "wait for
+          suppliers" silence right after publishing an RFQ with a clear
+          24-hour Customer Success commitment. Flag-gated; off by default. */}
+      {flags.CONCIERGE_MODE && rfq.status === 'open' ? (
+        <section
+          className="mt-8 rounded-2xl border border-[var(--color-action-blue)]/30 bg-[var(--color-action-blue)]/5 p-5"
+          data-component="concierge-rfq-success"
+        >
+          <h2 className="text-base font-semibold text-[var(--color-midnight-green)]">
+            خلال ٢٤ ساعة سيتواصل معك مدير حسابك
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-charcoal)]">
+            وصل طلبك. خلال السنة الأولى من Elmaared، فريق Customer Success
+            يتفاوض نيابة عنك مع موردين موثوقين خارج المنصة ثم يعرض عليك
+            عروضاً مُختارة يدوياً. مدير حسابك سيراسلك على WhatsApp + Email
+            خلال ٢٤ ساعة.
+          </p>
+        </section>
+      ) : null}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         {rfq.status === 'draft' ? <PublishButton rfqId={rfq.id} /> : <span />}

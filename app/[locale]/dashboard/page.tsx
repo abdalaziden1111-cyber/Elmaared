@@ -9,6 +9,7 @@ import {
   RFQ_STATUS_TONE,
 } from '@/lib/constants/labels';
 import { inTrustStatusLabel } from '@/lib/i18n/trust-name';
+import { flags } from '@/lib/feature-flags';
 
 const UPCOMING_EXHIBITIONS = [
   { name: 'LEAP 2027', date: '2027-02-08', city: 'الرياض' },
@@ -228,18 +229,32 @@ export default async function DashboardHomePage() {
       <section>
         <header className="flex items-end justify-between">
           <h2 className="text-lg font-semibold text-[var(--color-midnight-green)]">
-            موردون مقترحون لك
+            {flags.CONCIERGE_MODE
+              ? 'فريقنا يبحث لك'
+              : 'موردون مقترحون لك'}
           </h2>
           <Link
             href="/discover"
             className="text-xs font-medium text-[var(--color-action-blue)] hover:underline"
           >
-            كل الموردين ←
+            {flags.CONCIERGE_MODE ? 'كل الفرص ←' : 'كل الموردين ←'}
           </Link>
         </header>
+        {flags.CONCIERGE_MODE ? (
+          <p
+            className="mt-3 rounded-2xl border border-dashed border-[var(--color-action-blue)]/40 bg-[var(--color-action-blue)]/5 p-4 text-sm text-[var(--color-charcoal)]"
+            data-component="concierge-dashboard-banner"
+          >
+            خلال السنة الأولى من Elmaared، فريق Customer Success
+            يتفاوض نيابة عنك مع موردين موثوقين خارج المنصة. بمجرد أن
+            ترسل طلبك، سيتواصل معك مدير حسابك خلال ٢٤ ساعة بعروض مُختارة يدوياً.
+          </p>
+        ) : null}
         {suggested.length === 0 ? (
           <p className="mt-4 rounded-2xl border border-dashed border-[var(--color-stone-300)] bg-white p-8 text-center text-sm text-[var(--color-stone-600)]">
-            لا توجد موردون معتمدون بعد.
+            {flags.CONCIERGE_MODE
+              ? 'فريقنا يجهّز لك عروضاً مُختارة. سيظهرون هنا قريباً.'
+              : 'لا توجد موردون معتمدون بعد.'}
           </p>
         ) : (
           <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

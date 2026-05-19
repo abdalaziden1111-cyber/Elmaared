@@ -22,6 +22,8 @@ interface SupplierProfile {
   team_size: number | null;
   average_rating: number | null;
   total_completed_orders: number | null;
+  // UX Plan v2 §11 (Sprint 5 S5.3) — Concierge MVP marker.
+  is_concierge_managed?: boolean;
 }
 
 interface PortfolioRow {
@@ -69,7 +71,7 @@ export default async function PublicSupplierProfilePage({
   const { data: rowRaw } = await supabase
     .from('suppliers')
     .select(
-      'id, company_name, bio, specializations, cities, website, years_of_experience, team_size, average_rating, total_completed_orders'
+      'id, company_name, bio, specializations, cities, website, years_of_experience, team_size, average_rating, total_completed_orders, is_concierge_managed'
     )
     .eq('id', id)
     .eq('status', 'approved')
@@ -139,6 +141,16 @@ export default async function PublicSupplierProfilePage({
           <h1 className="text-3xl font-semibold text-[var(--color-midnight-green)]">
             {s.company_name}
           </h1>
+          {flags.CONCIERGE_MODE && s.is_concierge_managed ? (
+            <span
+              data-component="concierge-managed-badge"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-action-blue)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-action-blue)]"
+              title="حساب يديره فريق Elmaared نيابة عن المورد خلال مرحلة Concierge MVP"
+            >
+              <span aria-hidden>★</span>
+              مُدار بواسطة Elmaared
+            </span>
+          ) : null}
           {s.bio ? (
             <p className="mt-3 max-w-2xl whitespace-pre-line text-sm text-[var(--color-charcoal)]/80">
               {s.bio}
