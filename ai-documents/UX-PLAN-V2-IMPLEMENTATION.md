@@ -160,8 +160,37 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 
 
 
-### S1.3 — MarketRange component
-_pending_
+### S1.3 — MarketRange component (عين السوق) ✅
+
+**Done:** the price-range card the committee approved in Debate 01 — shows the historical fair-market range, the confidence badge, and (optionally) the supplier's quote as a marker on the bar with a one-line judgment.
+
+**File:** [components/ai/market-range.tsx](../components/ai/market-range.tsx) (~120 LOC).
+
+**Layout:**
+- Title "عين السوق" + `<ConfidenceBadge>` in the header.
+- Gradient track (success → info → warning) representing the price spectrum.
+- Min / max anchors below the track using `formatCurrency` (riyal symbol, comma separators).
+- Optional supplier marker (filled midnight-green dot) positioned at `(supplierPrice - min) / (max - min) × 100%`. Clamped to [0, 100] when out of range.
+- One-line judgment underneath:
+  - Inside range → "✓ هذا العرض داخل النطاق السوقي."
+  - Below → "⚠ هذا العرض أقل من حد السوق — قد يكون نطاق العمل غير مكتمل."
+  - Above → "⚠ هذا العرض أعلى من حد السوق — اطلب توضيح القيمة المضافة."
+
+**Fallback path:** when `level === 'unknown'` OR range is missing OR `min > max`, the bar collapses to a dashed-border card with "لا توجد بيانات سوقية كافية بعد لهذه الفئة — سنعرض النطاق فور تجمّع ٤ عروض أو أكثر." This is the user-facing twin of `<AIFallback>` (S1.5).
+
+**Tests:** [tests/unit/components/market-range.test.tsx](../tests/unit/components/market-range.test.tsx) — 7 cases:
+- Unknown bucket → fallback.
+- Valid bucket but null range → fallback.
+- Valid range renders bar + both anchors.
+- Supplier inside / below / above the range each carry the right note.
+- `aria-label` on the container.
+
+**Verification:**
+- `pnpm test tests/unit/components/market-range.test.tsx` ✅ 7/7 pass.
+- `pnpm typecheck` ✅ clean.
+- Browser: rendered live in S1.7 on the compare page.
+
+
 
 ### S1.4 — AIDisagreeButton + ai_feedback table
 _pending_
@@ -185,6 +214,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 |------|------|---------|
 | Sprint 0 + S1.0 | `46d9248` | feat(ux-v2): Sprint 0 + S1.0 — quick wins, microcopy, Amanah canonical |
 | S1.1 | `6ae35a3` | feat(s1.1): AI confidence metadata + market-quality columns |
+| S1.2 | `f64658a` | feat(s1.2): ConfidenceBadge component |
 
 ---
 
