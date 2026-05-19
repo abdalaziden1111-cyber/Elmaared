@@ -18,7 +18,7 @@ This file is the **single source of truth** for what's live and what's in flight
 | Sprint 2 | ✅ Done | S2.1–S2.5 | ✅ | RFQ Wizard → Single-Screen + Smart Defaults |
 | Sprint 3 | ✅ Done | S3.0–S3.6 | ✅ | Trust Architecture (4 layers) |
 | Sprint 4 | ✅ Done | S4.1–S4.6 | ✅ | Saudi Cultural Layer (Hijri / numerals / Prayer / 50 names / Saudi green) |
-| Sprint 5 | ⏳ Queued | S5.1–S5.4 | — | Failure Modes + Concierge + Regulatory |
+| Sprint 5 | ✅ Done | S5.0–S5.5 | ✅ | Failure Modes + Concierge + Regulatory |
 | Sprint 6 | ⏳ Queued | S6.1–S6.9 | — | Performance / Core Web Vitals |
 
 **Deferred (Future Work):** WCAG 2.2 AAA upgrade (Δ3, post-launch sprint).
@@ -39,8 +39,8 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 | `FF_HIJRI` | Sprint 4 | ✅ Wired (default OFF) | formatDate gates the Hijri-first display; HijriToggle persists user preference |
 | `FF_PRAYER` | Sprint 4 | ✅ Wired (default OFF) | PrayerTimesWidget component + adhan; not yet placed on a page (Day-of console TBD) |
 | `FF_NUMERALS` | Sprint 4 | ✅ Wired (default OFF) | formatNumber gates Arabic-Indic vs Latin; NumeralsToggle persists preference |
-| `FF_CONCIERGE` | Sprint 5 | _Not yet wired_ | "فريقنا يبحث لك" copy switch |
-| `FF_PDPL` | Sprint 5 | _Not yet wired_ | PDPL consent banner |
+| `FF_CONCIERGE` | Sprint 5 | ✅ Wired (default OFF) | Dashboard + RFQ-success copy + supplier-profile "مُدار بواسطة Elmaared" badge |
+| `FF_PDPL` | Sprint 5 | ✅ Wired (default OFF) | PDPLConsentBanner component; not yet mounted in layout (one-line follow-up) |
 
 ---
 
@@ -404,6 +404,12 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S4.3 | `e605d44` | feat(s4.3): Saudi names library — 50 entries × 5 regions |
 | S4.4 | `4520b3e` | feat(s4.4): Prayer Times widget + adhan (local computation) |
 | S4.5 | `e5910e6` | feat(s4.5): Saudi green token in globals.css (Δ4) |
+| Sprint 4 summary | `f84220f` | docs(s4): Sprint 4 final summary + commit log |
+| S5.0 | `e6462a6` | feat(s5.0): migration #6 — suppliers.is_concierge_managed |
+| S5.1 | `8513eab` | feat(s5.1): ErrorRecoveryLayout + 12 failure-mode recovery pages |
+| S5.2 | `ee5084f` | feat(s5.2): fake-review fraud detection helper |
+| S5.3 | `c1346ee` | feat(s5.3): Concierge MVP UI copy switches |
+| S5.4 | `be15d8f` | feat(s5.4): PDPL consent banner + DSR portal + ZATCA QR component |
 
 ---
 
@@ -521,3 +527,30 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 - Ramadan-mode banner trigger (`isRamadan()`) helper is ready, banner placement deferred to a follow-up.
 
 **Sprint 5 next:** Failure Modes + Concierge MVP UI + Regulatory Compliance UI — 6–8 days.
+
+---
+
+## Sprint 5 Summary (2026-05-19)
+
+| # | Task | Tests | Commit |
+|---|------|-------|--------|
+| S5.0 | Migration #6 (`suppliers.is_concierge_managed`) + types | 1009/1009 | `e6462a6` |
+| S5.1 | `<ErrorRecoveryLayout>` + 12 failure-mode recovery pages under `/error-states/*` | 1017/1017 (+8) | `8513eab` |
+| S5.2 | `lib/fraud/detect-fake-reviews.ts` — 5-signal heuristic, 3-tier verdict | 1025/1025 (+8) | `ee5084f` |
+| S5.3 | Concierge UI copy switches: dashboard banner + RFQ-success card + supplier badge | 1025/1025 | `c1346ee` |
+| S5.4 | PDPL Consent banner + `/legal/data-rights` DSR portal + ZATCA QR component | 1033/1033 (+8) | `be15d8f` |
+
+**Net additions:** +24 tests · 1 Supabase migration · 12 routable failure-state pages · 1 shared `<ErrorRecoveryLayout>` · 1 fraud heuristic helper · 3 regulatory-compliance components · 1 new public legal page · 1 new dependency (`qrcode.react`).
+
+**Browser-verified end-to-end:**
+- `/ar/error-states/escrow-transfer-failed` renders the critical-red recovery layout with "أمانة Elmaared™ محفوظة" title + WhatsApp + retry actions.
+- `/ar/legal/data-rights` renders the four PDPL right cards with pre-filled mailto CTAs.
+
+**Deferred follow-ups (non-blocking, documented):**
+
+- Failure-mode pages are routable but no upstream code redirects to them yet — those callsites (failed escrow transfer in `actions/escrow.ts`, AI gateway down in `lib/ai/score-proposal.ts`, etc.) will redirect when the corresponding ops paths get tightened.
+- Fraud-detection helper not yet wired into the review-submission flow (it'll quarantine + queue an admin alert — small follow-up).
+- PDPL banner component built but not yet mounted in the root layout (one-liner under `app/[locale]/layout.tsx`).
+- ZATCA QR component ready; receipt page wiring waits on the server-side TLV-encoding pipeline (Track O / Legal).
+
+**Sprint 6 next:** Performance Sprint — Lighthouse / Core Web Vitals / bundle analysis / DB query optimization / image optimization / caching / streaming — 5-7 days.
