@@ -6,6 +6,7 @@ import { formatCurrency, formatIban } from '@/lib/utils/format';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { trustName, trustLegalTooltip } from '@/lib/i18n/trust-name';
 import { TrustBar } from '@/components/trust/trust-bar';
+import { ZatcaQrCode } from '@/components/legal/zatca-qr-code';
 import { flags } from '@/lib/feature-flags';
 import { ReceiptUploadForm } from './receipt-upload-form';
 import { ApproveDeliveryButton } from './approve-delivery-button';
@@ -70,6 +71,18 @@ export default async function ClientEscrowPage({
     .single();
   const tx = rowRaw as unknown as EscrowRow | null;
   if (!tx) notFound();
+
+  // Phase U4.6 — look up the issued invoice (if any) so the receipt area
+  // can render the ZATCA QR alongside the success message. Optional —
+  // missing invoice just hides the QR section.
+  const { data: invRowRaw } = await admin
+    .from('invoices')
+    .select('id, invoice_number, zatca_qr_code, total_invoiced')
+    .eq('rfq_id', rfqId)
+    .maybeSingle();
+  const invoice = invRowRaw as
+    | { id: string; invoice_number: string; zatca_qr_code: string | null; total_invoiced: number }
+    | null;
 
   // Resolve the supplier's bank details so the client knows where to transfer.
   let supplier: SupplierBank | null = null;
@@ -205,6 +218,33 @@ export default async function ClientEscrowPage({
           <p className="mt-1 text-sm">
             تمّ اعتماد التسليم وإغلاق المشروع. يمكنك ترك تقييم للمورد من صفحة الطلب.
           </p>
+        </section>
+      ) : null}
+
+      {/* Phase U4.6 — ZATCA receipt card. Visible whenever an invoice
+          exists for this RFQ, regardless of escrow status — buyers need
+          the QR for tax filing even mid-execution. */}
+      {invoice && invoice.zatca_qr_code ? (
+        <section
+          className="mt-8 rounded-2xl border border-[var(--color-stone-300)] bg-white p-5"
+          data-component="zatca-receipt-card"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--color-midnight-green)]">
+                إيصال ضريبي معتمد — ZATCA
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--color-stone-600)]">
+                هذا الإيصال يلبّي متطلبات هيئة الزكاة والضريبة والجمارك
+                للفوترة الإلكترونية المرحلة الثانية. امسح الرمز للتحقق من
+                الإيصال أو لتقديمه في إقراراتك الضريبية.
+              </p>
+              <p className="mt-2 text-xs font-medium text-[var(--color-stone-600)]">
+                رقم الفاتورة: <span className="num">{invoice.invoice_number}</span>
+              </p>
+            </div>
+            <ZatcaQrCode tlvBase64={invoice.zatca_qr_code} size={140} />
+          </div>
         </section>
       ) : null}
     </div>

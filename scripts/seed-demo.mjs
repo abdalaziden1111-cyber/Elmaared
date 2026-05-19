@@ -525,14 +525,13 @@ async function deleteAllForClient(clientId) {
     .single();
   console.log(`  ✓ invoice ${invRow.id}`);
 
-  // 7. user_milestones — first_rfq so CelebrationModal fires on dashboard.
-  console.log('\n[5/5] Seeding user_milestones:');
-  await sb.from('user_milestones').insert({
-    user_id: clientId,
-    milestone_type: 'first_rfq',
-    achieved_at: new Date().toISOString(),
-  });
-  console.log(`  ✓ user_milestone first_rfq for ahmed`);
+  // 7. user_milestones — CelebrationModal uses ROW-PRESENCE to mean
+  // "already celebrated". So to make the modal fire on the demo, we need
+  // to ensure NO row exists for ahmed's `first_rfq` (the dashboard will
+  // detect that he has ≥1 RFQ but no row → triggers). deleteAllForClient
+  // already wiped this; explicit no-op log for clarity.
+  console.log('\n[5/5] Milestone state for celebration:');
+  console.log(`  ✓ user_milestones cleared for ahmed (CelebrationModal will fire on first dashboard load)`);
 
   // ─────────────────────────────────────────────
   // Summary + URLs

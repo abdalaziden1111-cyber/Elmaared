@@ -1,6 +1,8 @@
+import { Sparkles } from 'lucide-react';
 import { Link } from '@/lib/i18n/routing';
 import { createClient } from '@/lib/supabase/server';
 import { SERVICE_LABEL_LONG as SERVICE_LABEL, CITY_LABEL } from '@/lib/constants/labels';
+import { flags } from '@/lib/feature-flags';
 
 interface SupplierRow {
   id: string;
@@ -11,6 +13,7 @@ interface SupplierRow {
   average_rating: number | null;
   total_completed_orders: number | null;
   years_of_experience: number | null;
+  is_concierge_managed: boolean | null;
 }
 const SERVICE_OPTIONS = ['booth', 'gifts', 'event', 'printing'] as const;
 const CITY_OPTIONS = [
@@ -49,7 +52,7 @@ export default async function DiscoverPage({
   let q = supabase
     .from('suppliers')
     .select(
-      'id, company_name, bio, specializations, cities, average_rating, total_completed_orders, years_of_experience',
+      'id, company_name, bio, specializations, cities, average_rating, total_completed_orders, years_of_experience, is_concierge_managed',
       { count: 'exact' }
     )
     .eq('status', 'approved');
@@ -164,9 +167,21 @@ export default async function DiscoverPage({
                 <div className="flex size-12 items-center justify-center rounded-xl bg-[var(--color-midnight-green-100)] text-base font-semibold text-[var(--color-midnight-green)]">
                   {s.company_name.slice(0, 1)}
                 </div>
-                <h2 className="mt-4 text-base font-semibold text-[var(--color-midnight-green)]">
-                  {s.company_name}
-                </h2>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-[var(--color-midnight-green)]">
+                    {s.company_name}
+                  </h2>
+                  {flags.CONCIERGE_MODE && s.is_concierge_managed ? (
+                    <span
+                      data-component="concierge-badge"
+                      className="inline-flex items-center gap-1 rounded-full bg-[var(--color-saudi-green-100,#E0F5ED)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-saudi-green,#006C35)]"
+                      title="هذا الحساب يديره فريق Elmaared خلال مرحلة الكونسيرج"
+                    >
+                      <Sparkles className="size-3" aria-hidden />
+                      مُدار بواسطة Elmaared
+                    </span>
+                  ) : null}
+                </div>
                 {s.bio ? (
                   <p className="mt-1 line-clamp-2 text-xs text-[var(--color-stone-600)]">
                     {s.bio}

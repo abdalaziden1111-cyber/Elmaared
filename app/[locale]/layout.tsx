@@ -4,6 +4,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { plexArabic, inter } from '../fonts';
 import '../globals.css';
+import { PDPLConsentBanner } from '@/components/legal/pdpl-consent';
 
 const SUPPORTED_LOCALES = ['ar', 'en'] as const;
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -40,6 +41,9 @@ export default async function LocaleLayout({
       <body className="min-h-screen bg-cream font-arabic text-charcoal antialiased">
         <NextIntlClientProvider messages={messages} locale={locale}>
           {children}
+          {/* PDPL consent banner — self-gates on flags.PDPL_CONSENT +
+              localStorage. Renders only on first visit when flag is on. */}
+          <PDPLConsentBanner />
         </NextIntlClientProvider>
       </body>
     </html>

@@ -9,6 +9,7 @@ import { useRfqWizardStore } from '@/stores/rfq-wizard-store';
 import { getRfqSmartDefaultsAction } from '@/app/actions/smart-defaults';
 import type { SmartDefaults } from '@/lib/rfq/smart-defaults';
 import { formatCurrency } from '@/lib/utils/format';
+import { AIOverride } from '@/components/ai/ai-override';
 import { SelectField } from './select-field';
 
 /**
@@ -98,18 +99,55 @@ export function BudgetSection() {
         options={CITIES.map((c) => ({ value: c.value, label: c.labelAr }))}
         onChange={(v) => setField('exhibitionCity', v)}
       />
-      <FormField
-        type="number"
-        label="الحد الأدنى للميزانية (﷼)"
-        value={data.budgetMin}
-        onChange={(e) => setField('budgetMin', e.target.value)}
-      />
-      <FormField
-        type="number"
-        label="الحد الأعلى للميزانية (﷼)"
-        value={data.budgetMax}
-        onChange={(e) => setField('budgetMax', e.target.value)}
-      />
+      {/* Phase U4.4 — AIOverride wraps the budget fields after the user
+          accepts a Smart Defaults suggestion. The chip shows the AI value;
+          when the typed number diverges from it, a "تجاوزت اقتراح AI"
+          banner + reset button appears. Hidden until applied; once the
+          user resets, the banner clears. */}
+      {applied && suggestion ? (
+        <AIOverride
+          aiSuggestion={`${formatCurrency(suggestion.budgetMin)} – ${formatCurrency(suggestion.budgetMax)}`}
+          userValueDiffers={
+            Number(data.budgetMin) !== suggestion.budgetMin ||
+            Number(data.budgetMax) !== suggestion.budgetMax
+          }
+          onResetToAi={() => {
+            setField('budgetMin', String(suggestion.budgetMin));
+            setField('budgetMax', String(suggestion.budgetMax));
+          }}
+          label="الميزانية المقترحة"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField
+              type="number"
+              label="الحد الأدنى للميزانية (﷼)"
+              value={data.budgetMin}
+              onChange={(e) => setField('budgetMin', e.target.value)}
+            />
+            <FormField
+              type="number"
+              label="الحد الأعلى للميزانية (﷼)"
+              value={data.budgetMax}
+              onChange={(e) => setField('budgetMax', e.target.value)}
+            />
+          </div>
+        </AIOverride>
+      ) : (
+        <>
+          <FormField
+            type="number"
+            label="الحد الأدنى للميزانية (﷼)"
+            value={data.budgetMin}
+            onChange={(e) => setField('budgetMin', e.target.value)}
+          />
+          <FormField
+            type="number"
+            label="الحد الأعلى للميزانية (﷼)"
+            value={data.budgetMax}
+            onChange={(e) => setField('budgetMax', e.target.value)}
+          />
+        </>
+      )}
       <FormField
         type="datetime-local"
         label="آخر موعد لاستقبال العروض"

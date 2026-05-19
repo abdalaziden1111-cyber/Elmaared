@@ -11,6 +11,8 @@ import {
 } from '@/lib/constants/labels';
 import { inTrustStatusLabel } from '@/lib/i18n/trust-name';
 import { flags } from '@/lib/feature-flags';
+import { CelebrationGate } from './celebration-gate';
+import type { MilestoneType } from '@/lib/supabase/types';
 
 // Sprint 6 S6.1 — "top suppliers" list is user-agnostic + changes rarely.
 // Cache for 5 minutes under the `top-suppliers` tag so admin actions that
@@ -59,7 +61,7 @@ export default async function DashboardHomePage() {
   // the serial wait and halves the dashboard's server time on cold loads.
   // `getTopApprovedSuppliers` is unstable_cache'd (5-min TTL, top-suppliers
   // tag) so most renders skip the DB roundtrip entirely.
-  const [{ data: rfqsRaw }, suggested] = await Promise.all([
+  const [{ data: rfqsRaw }, suggested, { data: milestonesRaw }] = await Promise.all([
     admin
       .from('rfqs')
       .select(
@@ -69,7 +71,18 @@ export default async function DashboardHomePage() {
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
     getTopApprovedSuppliers(),
+    // Phase U4.3 — read existing milestone rows so we can decide which
+    // celebration to fire (if any). Cheap query — one row per type max.
+    admin
+      .from('user_milestones')
+      .select('milestone_type')
+      .eq('user_id', user.id),
   ]);
+  const claimedMilestones = new Set(
+    ((milestonesRaw ?? []) as Array<{ milestone_type: string }>).map(
+      (m) => m.milestone_type,
+    ),
+  );
   const rfqs = (rfqsRaw ?? []) as Array<{
     id: string;
     rfq_number: string;
@@ -89,8 +102,22 @@ export default async function DashboardHomePage() {
 
   const recent = rfqs.slice(0, 5);
 
+  // Phase U4.3 — pick the most relevant un-celebrated milestone, in order
+  // of significance. The CelebrationGate client island opens the modal
+  // once on mount; the modal itself persists the claim via the existing
+  // server action so it won't re-fire.
+  let pendingMilestone: MilestoneType | null = null;
+  if (flags.CELEBRATION_MODALS) {
+    if (kpis.completed > 0 && !claimedMilestones.has('first_deal')) {
+      pendingMilestone = 'first_deal';
+    } else if (rfqs.length > 0 && !claimedMilestones.has('first_rfq')) {
+      pendingMilestone = 'first_rfq';
+    }
+  }
+
   return (
     <div className="space-y-10">
+      <CelebrationGate milestone={pendingMilestone} />
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-midnight-green)]">

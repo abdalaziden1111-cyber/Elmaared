@@ -2,6 +2,11 @@ import { Link } from '@/lib/i18n/routing';
 import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ProfileSettingsForms } from './profile-form';
+import { CulturalPreferences } from './cultural-prefs';
+import type {
+  CalendarPreference,
+  NumeralsPreference,
+} from '@/components/cultural/preference-toggles';
 
 export default async function ClientProfileSettingsPage() {
   const { user } = await requireRole(['client']);
@@ -9,10 +14,15 @@ export default async function ClientProfileSettingsPage() {
 
   const { data: profRaw } = await admin
     .from('profiles')
-    .select('full_name, phone')
+    .select('full_name, phone, preferred_calendar, preferred_numerals')
     .eq('id', user.id)
     .single();
-  const profile = profRaw as { full_name: string | null; phone: string | null } | null;
+  const profile = profRaw as {
+    full_name: string | null;
+    phone: string | null;
+    preferred_calendar: CalendarPreference | null;
+    preferred_numerals: NumeralsPreference | null;
+  } | null;
 
   return (
     <div>
@@ -35,6 +45,11 @@ export default async function ClientProfileSettingsPage() {
           phone: profile?.phone ?? '',
           email: user.email ?? '',
         }}
+      />
+
+      <CulturalPreferences
+        initialCalendar={profile?.preferred_calendar ?? 'hijri'}
+        initialNumerals={profile?.preferred_numerals ?? 'arabic-indic'}
       />
     </div>
   );
