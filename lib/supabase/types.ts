@@ -42,6 +42,10 @@ type ProposalStatus =
   | 'accepted'
   | 'rejected'
   | 'withdrawn';
+// UX Plan v2 Decision #01 — AI Confidence Framework (Sprint 1 S1.1).
+// 4 buckets matching the visual badges 🟢🔵🟡⚪. See lib/ai/confidence.ts
+// for the derivation rules.
+export type AiConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
 type EscrowStatus =
   | 'awaiting_deposit'
   | 'deposit_received'
@@ -215,6 +219,12 @@ interface ProposalRow {
   ai_summary: string | null;
   ai_strengths: string[] | null;
   ai_concerns: string[] | null;
+  // UX Plan v2 Decision #01 — market-quality metadata (Sprint 1 S1.1).
+  ai_confidence: AiConfidenceLevel | null;
+  ai_sample_size: number | null;
+  ai_variance_pct: number | null;
+  ai_price_range_min: number | null;
+  ai_price_range_max: number | null;
   status: ProposalStatus;
   created_at: string;
   updated_at: string;

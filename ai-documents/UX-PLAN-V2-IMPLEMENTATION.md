@@ -78,8 +78,49 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 
 
 
-### S1.1 — AI Schema confidence metadata
-_pending_
+### S1.1 — AI Schema confidence metadata ✅
+
+**Done:** added market-quality metadata to `proposals` (5 columns + ENUM), pure helpers to compute it, integrated into `scoreProposal()` so every newly-scored proposal gets the bucket + range alongside the score.
+
+**Migration:** [supabase/migrations/20261119000001_ai_confidence_metadata.sql](../supabase/migrations/20261119000001_ai_confidence_metadata.sql)
+- `CREATE TYPE ai_confidence_level AS ENUM ('high', 'medium', 'low', 'unknown')`.
+- Adds 5 nullable columns to `proposals`: `ai_confidence`, `ai_sample_size`, `ai_variance_pct`, `ai_price_range_min`, `ai_price_range_max`.
+- Partial index on `ai_confidence WHERE NOT NULL`.
+- **NOT yet applied to the live DB.** Run `pnpm db:migrate` against the project Supabase instance to apply; until then existing rows keep the old shape and the new columns are unread.
+
+**Helpers:** [lib/ai/confidence.ts](../lib/ai/confidence.ts) — two pure, dependency-free functions:
+- `computeMarketContext(prices)` → `{ sampleSize, variancePct, priceMin, priceMax }`. Filters non-finite / non-positive entries, uses sample std-dev (n-1).
+- `deriveConfidence({ sampleSize, variancePct })` → `'high' | 'medium' | 'low' | 'unknown'` per the committee debate truth table.
+
+**Bucketing rules (Plan v2 §5, Debate 01):**
+
+| N | variance% | → |
+|---|-----------|---|
+| < 4 | any | `unknown` |
+| 4-9 | any | `low` |
+| 10-19 | any | `medium` |
+| ≥ 20 | < 25 | `high` |
+| ≥ 20 | ≥ 25 or null | `medium` (large sample, but disagrees) |
+
+**Schema wiring:** [lib/ai/score-proposal.ts](../lib/ai/score-proposal.ts) now:
+1. Queries `proposals JOIN rfqs` for same `service_type`, last 12 months, excluding the current proposal and `withdrawn` ones (capped at 500).
+2. Computes `MarketContext` from those prices.
+3. Derives the confidence bucket from N + variance.
+4. Persists the 5 new columns alongside the AI score on every success/failure/skip path (the badge is useful even when the AI score is missing).
+
+**Types:** [lib/supabase/types.ts](../lib/supabase/types.ts) — added `AiConfidenceLevel` union + the 5 new fields on `ProposalRow`. Existing consumers (`compare/page.tsx`, `proposals/[proposalId]/page.tsx`) still typecheck — they read the old columns; the new ones get wired in S1.7.
+
+**Tests:** [tests/unit/ai/confidence.test.ts](../tests/unit/ai/confidence.test.ts) — 11 cases:
+- `computeMarketContext`: empty / single / 5-sample CV / sanitization of NaN/Infinity/negative / decimal rounding.
+- `deriveConfidence`: each bucket boundary + null-variance fallback at large N.
+
+**Verification:**
+- `pnpm typecheck` ✅ clean.
+- `pnpm test` ✅ **882/882 pass** (was 871 + 11 new).
+- `pnpm lint` ✅ no new errors on touched files (one pre-existing `_omit` warning carried over from the original file).
+- Browser: no visible change yet — the migration hasn't been applied to the dev DB and S1.7 (compare-page UI) is still pending. Verified the dev server still boots clean.
+
+
 
 ### S1.2 — ConfidenceBadge component
 _pending_
@@ -107,7 +148,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 
 | Task | Hash | Subject |
 |------|------|---------|
-| _none yet_ | | |
+| Sprint 0 + S1.0 | `46d9248` | feat(ux-v2): Sprint 0 + S1.0 — quick wins, microcopy, Amanah canonical |
 
 ---
 
