@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { Star, ArrowRight, Briefcase } from 'lucide-react';
 import { Link } from '@/lib/i18n/routing';
 import { createClient } from '@/lib/supabase/server';
@@ -242,20 +243,24 @@ export default async function PublicSupplierProfilePage({
           </p>
         ) : (
           <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {portfolio.map((p) => (
+            {portfolio.map((p, idx) => (
               <li
                 key={p.id}
                 className="overflow-hidden rounded-2xl border border-[var(--color-stone-300)] bg-white"
               >
                 {p.cover_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  // Sprint 6 S6.4 — `next/image` with proper srcset. The
+                  // Supabase storage hostname is whitelisted in next.config.ts.
+                  // First card across breakpoints gets `priority` so the LCP
+                  // image starts downloading without waiting for the lazy
+                  // observer; remaining cards stay lazy.
+                  <Image
                     src={p.cover_image_url}
                     alt={p.title}
-                    loading="lazy"
-                    decoding="async"
                     width={640}
                     height={360}
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    priority={idx === 0}
                     className="aspect-video w-full object-cover"
                   />
                 ) : (
