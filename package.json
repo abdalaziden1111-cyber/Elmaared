@@ -14,7 +14,8 @@
     "test:e2e:no-db": "playwright test --grep-invert @needs-db",
     "db:types": "supabase gen types typescript --local > lib/supabase/types.ts",
     "db:reset": "supabase db reset",
-    "db:migrate": "supabase db push"
+    "db:migrate": "supabase db push",
+    "mail:setup": "node scripts/setup-resend-domain.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.75",
