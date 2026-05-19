@@ -161,6 +161,8 @@ interface SupplierRow {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
+  // UX Plan v2 Decision #08 — Concierge MVP marker (Sprint 5 S5.0).
+  is_concierge_managed: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
