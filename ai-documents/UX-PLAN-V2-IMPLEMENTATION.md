@@ -122,8 +122,43 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 
 
 
-### S1.2 — ConfidenceBadge component
-_pending_
+### S1.2 — ConfidenceBadge component ✅
+
+**Done:** the 4-level visual indicator the committee approved in Debate 01 — a Radix tooltip-wrapped chip that maps `AiConfidenceLevel` → glyph + Arabic label + semantic chip styling.
+
+**File:** [components/ai/confidence-badge.tsx](../components/ai/confidence-badge.tsx) (~100 LOC).
+
+**Buckets → presentation:**
+| Level | Glyph | Label | Token |
+|-------|-------|-------|-------|
+| `high` | 🟢 | دقيق جداً | `--color-success` |
+| `medium` | 🔵 | دقيق | `--color-info` |
+| `low` | 🟡 | تقريبي | `--color-warning` |
+| `unknown` | ⚪ | تخمين أولي | `--color-stone-600` |
+
+- Sample size renders inline as `(n=23)` when N>0; omitted at N=0.
+- Tooltip carries the numeric detail: "بناءً على X عرضاً مماثلاً خلال آخر 12 شهراً. تباين السوق: Y٪." Susan Weinschenk's objection (Debate 01) — that raw numbers freeze users — is honored by hiding them behind hover/focus while keeping them available to anyone who wants them.
+- Accessibility:
+  - `role="status"` so screen readers announce changes when the level updates.
+  - `aria-label` carries the full sentence; the emoji is `aria-hidden` to avoid double-read.
+  - Tooltip is keyboard-accessible (Radix primitive).
+- Pure presentational — server-component-friendly (no `'use client'` on the badge itself; the Radix Tooltip primitive marks itself `'use client'`).
+
+**Tests:** [tests/unit/components/confidence-badge.test.tsx](../tests/unit/components/confidence-badge.test.tsx) — 8 cases:
+- Each bucket renders its label.
+- N=0 path hides the sample chip.
+- aria-label composition.
+- Empty-sample fallback aria text.
+- `data-confidence` attribute reflects the level.
+- Different chip classes per bucket.
+
+**Verification:**
+- `pnpm test tests/unit/components/confidence-badge.test.tsx` ✅ 8/8 pass.
+- `pnpm typecheck` ✅ clean.
+- `pnpm lint` ✅ clean on the new file.
+- Browser: not yet rendered anywhere — wired into the compare page in S1.7.
+
+
 
 ### S1.3 — MarketRange component
 _pending_
@@ -149,6 +184,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | Task | Hash | Subject |
 |------|------|---------|
 | Sprint 0 + S1.0 | `46d9248` | feat(ux-v2): Sprint 0 + S1.0 — quick wins, microcopy, Amanah canonical |
+| S1.1 | `6ae35a3` | feat(s1.1): AI confidence metadata + market-quality columns |
 
 ---
 
