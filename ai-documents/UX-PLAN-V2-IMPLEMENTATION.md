@@ -14,7 +14,7 @@ This file is the **single source of truth** for what's live and what's in flight
 |--------|--------|-------|----------|-------|
 | Pre-Sprint 0 | ✅ Done | F.1, F.1b, F.2, F.3 | ✅ | Feature flags + analytics + research tracker |
 | Sprint 0 | ✅ Done | S0.1, S0.2, S0.3 | ✅ | Competitor badge, Escrow→أمانة (flag), microcopy |
-| **Sprint 1** | 🟡 In progress | S1.0–S1.7 | — | Amanah-default cleanup + AI Confidence |
+| **Sprint 1** | ✅ Done | S1.0–S1.7 | ✅ | Amanah-default cleanup + AI Confidence Framework |
 | Sprint 2 | ⏳ Queued | S2.1–S2.4 | — | RFQ Wizard → Single-Screen |
 | Sprint 3 | ⏳ Queued | S3.1–S3.5 | — | Trust Architecture (4 layers) |
 | Sprint 4 | ⏳ Queued | S4.1–S4.8 | — | Saudi Cultural Layer |
@@ -385,15 +385,39 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S1.4 | `f01ee5a` | feat(s1.4): AIDisagreeButton + ai_feedback table (migration #2) |
 | S1.5 | `f7607c0` | feat(s1.5): AIFallback component — explain why AI is silent |
 | S1.6 | `5f776cc` | feat(s1.6): AIOverride wrapper + /legal/ai-models bias-disclosure page |
+| S1.7 | `842db4b` | feat(s1.7): wire AI confidence stack into compare + proposal-detail |
 
 ---
 
 ## Preservation Gates (re-checked after every Sprint)
 
-| Gate | Baseline | Current |
-|------|----------|---------|
-| Tests | 874/874 (after Sprint 0) | _TBD_ |
-| Typecheck | clean | _TBD_ |
-| Lint | 0 errors in touched files | _TBD_ |
-| Sprint 0 work | intact | _TBD_ |
-| `ai-documents/DEEP-AUDIT-REPORT.md` items | passing | _TBD_ |
+| Gate | Baseline | After Sprint 1 |
+|------|----------|----------------|
+| Tests | 874/874 (after Sprint 0) | ✅ **915/915** (+41 new) |
+| Typecheck | clean | ✅ clean |
+| Lint | 0 errors in touched files | ✅ 0 errors in touched files |
+| Sprint 0 work | intact | ✅ amanah copy unchanged, microcopy guide intact, supplier badge unchanged |
+| `ai-documents/DEEP-AUDIT-REPORT.md` items | passing | ✅ no audit-checked surfaces touched |
+
+---
+
+## Sprint 1 Summary (2026-05-19)
+
+| # | Task | Tests | Commit |
+|---|------|-------|--------|
+| S1.0 | Amanah-default cleanup (Δ1) | 871/871 | `46d9248` |
+| S1.1 | Migration #1 + `confidence.ts` helpers + scoreProposal market context | 882/882 (+11) | `6ae35a3` |
+| S1.2 | `<ConfidenceBadge>` | 890/890 (+8) | `f64658a` |
+| S1.3 | `<MarketRange>` "عين السوق" | 897/897 (+7) | `b36a1bb` |
+| S1.4 | `<AIDisagreeButton>` + ai_feedback table (migration #2) + server action | 902/902 (+5) | `f01ee5a` |
+| S1.5 | `<AIFallback>` | 910/910 (+8) | `f7607c0` |
+| S1.6 | `<AIOverride>` + `/legal/ai-models` (SDAIA disclosure) | 915/915 (+5) | `5f776cc` |
+| S1.7 | Wire into compare + proposal detail pages (behind `FF_AI_CONFIDENCE`) | 915/915 | `842db4b` |
+
+**Net additions:** +41 tests · 2 Supabase migrations (need `pnpm db:migrate` to apply) · 1 ENUM helper · 5 new components · 1 server action · 1 legal page · 1 retired feature flag.
+
+**Migrations pending:**
+- `20261119000001_ai_confidence_metadata.sql` (5 cols + ENUM `ai_confidence_level`)
+- `20261119000002_ai_feedback.sql` (table + ENUM `ai_feedback_reason` + RLS + trigger)
+
+**Sprint 2 next:** RFQ Wizard → Single-Screen (10–12 days). Depends on `<MarketRange>` for Smart Defaults — already in place.
