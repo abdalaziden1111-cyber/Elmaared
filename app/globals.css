@@ -26,6 +26,13 @@
   --color-danger-100: #FEE2E2;
   --color-info: #0284C7;
   --color-info-100: #E0F2FE;
+  /* UX Plan v2 Δ4 (Sprint 4 S4.5) — Saudi green accent (#006C35).
+     Use only as accent: celebration confetti, Saudi National Day banners,
+     ZATCA / Nafath compliance badges. Never as primary — that's
+     midnight-green. The -100 tint clears WCAG AA on cream backgrounds. */
+  --color-saudi-green: #006C35;
+  --color-saudi-green-100: #E0F5ED;
+  --color-saudi-green-700: #004D28;
 }
 
 :root {
