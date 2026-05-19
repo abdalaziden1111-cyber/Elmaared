@@ -3,6 +3,11 @@ import { requireRole } from '@/lib/auth/require-role';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { ConfidenceBadge } from '@/components/ai/confidence-badge';
+import { MarketRange } from '@/components/ai/market-range';
+import { AIDisagreeButton } from '@/components/ai/ai-disagree-button';
+import { flags } from '@/lib/feature-flags';
+import type { AiConfidenceLevel } from '@/lib/supabase/types';
 
 interface ProposalDetail {
   id: string;
@@ -20,6 +25,12 @@ interface ProposalDetail {
   ai_summary: string | null;
   ai_strengths: string[] | null;
   ai_concerns: string[] | null;
+  // UX Plan v2 Decision #01 — market-quality metadata (Sprint 1 S1.1).
+  ai_confidence: AiConfidenceLevel | null;
+  ai_sample_size: number | null;
+  ai_variance_pct: number | null;
+  ai_price_range_min: number | null;
+  ai_price_range_max: number | null;
   supplier: {
     id: string;
     company_name: string;
@@ -53,12 +64,15 @@ export default async function ClientProposalDetailPage({
     .from('proposals')
     .select(
       `id, rfq_id, total_price, delivery_days, description, scope_of_work, excluded_items, payment_terms, validity_days, status, created_at, ai_score, ai_summary, ai_strengths, ai_concerns,
+       ai_confidence, ai_sample_size, ai_variance_pct, ai_price_range_min, ai_price_range_max,
        supplier:suppliers (id, company_name, average_rating, total_completed_orders)`
     )
     .eq('id', proposalId)
     .single();
   const p = rowRaw as unknown as ProposalDetail | null;
   if (!p || p.rfq_id !== rfqId) notFound();
+
+  const showAiConfidenceUi = flags.AI_CONFIDENCE_UI;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -84,8 +98,36 @@ export default async function ClientProposalDetailPage({
         {p.validity_days ? (
           <Stat label="صلاحية العرض" value={`${p.validity_days} يوم`} />
         ) : null}
-        {p.ai_score != null ? <Stat label="تقييم الذكاء" value={`${p.ai_score}/100`} /> : null}
+        {p.ai_score != null ? (
+          showAiConfidenceUi && p.ai_confidence ? (
+            <div className="rounded-xl bg-white p-3">
+              <div className="text-xs text-[var(--color-stone-600)]">تقييم الذكاء</div>
+              <div className="mt-2">
+                <ConfidenceBadge
+                  level={p.ai_confidence}
+                  sampleSize={p.ai_sample_size}
+                  variancePct={p.ai_variance_pct}
+                />
+              </div>
+            </div>
+          ) : (
+            <Stat label="تقييم الذكاء" value={`${p.ai_score}/100`} />
+          )
+        ) : null}
       </div>
+
+      {showAiConfidenceUi && p.ai_confidence ? (
+        <div className="mt-6">
+          <MarketRange
+            level={p.ai_confidence}
+            min={p.ai_price_range_min}
+            max={p.ai_price_range_max}
+            sampleSize={p.ai_sample_size}
+            variancePct={p.ai_variance_pct}
+            supplierPrice={p.total_price}
+          />
+        </div>
+      ) : null}
 
       {p.description ? (
         <Section title="وصف العرض">{p.description}</Section>
@@ -102,6 +144,12 @@ export default async function ClientProposalDetailPage({
 
       {p.ai_summary ? (
         <Section title="ملخص الذكاء الاصطناعي">{p.ai_summary}</Section>
+      ) : null}
+
+      {showAiConfidenceUi && p.ai_score != null ? (
+        <div className="mt-6 flex justify-end">
+          <AIDisagreeButton proposalId={p.id} />
+        </div>
       ) : null}
     </div>
   );

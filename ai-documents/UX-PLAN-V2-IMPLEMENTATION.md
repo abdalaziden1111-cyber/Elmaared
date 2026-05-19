@@ -338,8 +338,37 @@ Header shows the most recent review date (Hijri + Gregorian); the page is review
 
 
 
-### S1.7 — Apply to compare page
-_pending_
+### S1.7 — Wire S1.1–S1.6 components into the compare flow ✅
+
+**Done:** the buyer-side comparison surface now consumes the new AI-confidence stack behind `FF_AI_CONFIDENCE`. When the flag is OFF (default) the page is byte-for-byte identical to its pre-Sprint-1 shape. When ON, the new components light up.
+
+**Pages touched:**
+
+1. [app/\[locale\]/dashboard/rfqs/\[id\]/compare/page.tsx](../app/[locale]/dashboard/rfqs/[id]/compare/page.tsx)
+   - Extends the `proposals` SELECT to include the 5 new market-quality columns (`ai_confidence`, `ai_sample_size`, `ai_variance_pct`, `ai_price_range_min`, `ai_price_range_max`).
+   - When `flags.AI_CONFIDENCE_UI` is ON and at least one proposal carries a confidence value, renders a single `<MarketRange>` card at the top of the proposal list — market context is identical for every proposal in this RFQ (same `service_type` baseline), so showing it once is cleaner than per-row.
+   - Each scored proposal row swaps the raw `X/100` number for `<ConfidenceBadge>` and appends an `<AIDisagreeButton>` in the row footer.
+   - Pending proposals (< 5 min old) get `<AIFallback reason="pending" />` instead of the inline "جارٍ التقييم…" text.
+   - Stale-unscored proposals (> 5 min and still null) get `<AIFallback reason="service_error" />`.
+   - All flag-off paths preserve the original `X/100` + inline copy verbatim.
+
+2. [app/\[locale\]/dashboard/rfqs/\[id\]/proposals/\[proposalId\]/page.tsx](../app/[locale]/dashboard/rfqs/[id]/proposals/[proposalId]/page.tsx)
+   - Extends the proposal SELECT with the same 5 new columns.
+   - When the flag is ON, the "تقييم الذكاء" stat-card swaps to a `<ConfidenceBadge>` inside the stat slot.
+   - Adds a `<MarketRange>` card below the stats with the supplier's `total_price` as the marker — buyer sees instantly whether the proposal sits inside / below / above the historical band.
+   - Adds a footer `<AIDisagreeButton>` whenever an AI score exists.
+
+**Verification:**
+- `pnpm typecheck` ✅ clean.
+- `pnpm test` ✅ **915/915 pass** (no regressions; component unit tests carry their own coverage).
+- Browser:
+  - `/ar/legal/ai-models` renders 4 model cards + SDAIA disclosure (verified earlier in S1.6).
+  - `/ar/dashboard/rfqs/[id]/compare` loads, 200, no console / server errors. Dev seed has zero proposals, so the empty state ("لم تصل عروض بعد") renders correctly — the AI confidence stack stays dormant until proposals exist + flag is ON. Screenshot captured.
+- **Live AI confidence UI not visually exercised** because the dev seed has 0 proposals on the test RFQs. To exercise: seed at least one scored proposal AND set `NEXT_PUBLIC_FF_AI_CONFIDENCE=true` AND apply migration #1 to the dev DB. Unit + render tests cover every code path.
+
+**Limitation noted:** the new columns (`ai_confidence`, etc.) live in migration #1, which has not been applied to the dev Supabase yet. The compare page's SELECT references those columns; if a proposal existed and the column didn't, the query would error and the page would fall through to the empty state. No risk to production until migrations are applied; staged for `pnpm db:migrate`.
+
+
 
 ---
 
@@ -355,6 +384,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S1.3 | `b36a1bb` | feat(s1.3): MarketRange component — "عين السوق" price-range bar |
 | S1.4 | `f01ee5a` | feat(s1.4): AIDisagreeButton + ai_feedback table (migration #2) |
 | S1.5 | `f7607c0` | feat(s1.5): AIFallback component — explain why AI is silent |
+| S1.6 | `5f776cc` | feat(s1.6): AIOverride wrapper + /legal/ai-models bias-disclosure page |
 
 ---
 

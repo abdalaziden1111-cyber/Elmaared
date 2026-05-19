@@ -5,6 +5,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency } from '@/lib/utils/format';
 import { StatusPill } from '@/components/ui/status-pill';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { ConfidenceBadge } from '@/components/ai/confidence-badge';
+import { MarketRange } from '@/components/ai/market-range';
+import { AIFallback } from '@/components/ai/ai-fallback';
+import { AIDisagreeButton } from '@/components/ai/ai-disagree-button';
+import { flags } from '@/lib/feature-flags';
+import type { AiConfidenceLevel } from '@/lib/supabase/types';
 import { ShortlistButton } from './shortlist-button';
 import { AwardButton } from './award-button';
 
@@ -22,6 +28,12 @@ interface ProposalRow {
   ai_summary: string | null;
   ai_strengths: string[] | null;
   ai_concerns: string[] | null;
+  // UX Plan v2 Decision #01 — market-quality metadata (Sprint 1 S1.1).
+  ai_confidence: AiConfidenceLevel | null;
+  ai_sample_size: number | null;
+  ai_variance_pct: number | null;
+  ai_price_range_min: number | null;
+  ai_price_range_max: number | null;
   status: string;
   created_at: string;
   supplier: {
@@ -58,13 +70,22 @@ export default async function ComparePage({
   const { data: proposalsRaw } = await admin
     .from('proposals')
     .select(
-      `id, total_price, delivery_days, description, ai_score, ai_summary, ai_strengths, ai_concerns, status, created_at,
+      `id, total_price, delivery_days, description, ai_score, ai_summary, ai_strengths, ai_concerns,
+       ai_confidence, ai_sample_size, ai_variance_pct, ai_price_range_min, ai_price_range_max,
+       status, created_at,
        supplier:suppliers (id, company_name, average_rating, total_completed_orders)`
     )
     .eq('rfq_id', id)
     .order('ai_score', { ascending: false, nullsFirst: false });
 
   const proposals = (proposalsRaw ?? []) as unknown as ProposalRow[];
+
+  // Plan v2 Decision #01 — market context is identical for every proposal in
+  // this RFQ (same service_type baseline). Render one MarketRange card at the
+  // top instead of repeating it per row. Pulled from the first proposal that
+  // has been scored. Hidden when FF_AI_CONFIDENCE is off.
+  const marketRef = proposals.find((p) => p.ai_confidence != null);
+  const showAiConfidenceUi = flags.AI_CONFIDENCE_UI;
 
   return (
     <div>
@@ -92,7 +113,19 @@ export default async function ComparePage({
           </p>
         </div>
       ) : (
-        <ul className="mt-6 grid gap-4">
+        <>
+          {showAiConfidenceUi && marketRef ? (
+            <div className="mt-6">
+              <MarketRange
+                level={marketRef.ai_confidence ?? 'unknown'}
+                min={marketRef.ai_price_range_min}
+                max={marketRef.ai_price_range_max}
+                sampleSize={marketRef.ai_sample_size}
+                variancePct={marketRef.ai_variance_pct}
+              />
+            </div>
+          ) : null}
+          <ul className="mt-6 grid gap-4">
           {proposals.map((p, idx) => (
             <li
               key={p.id}
@@ -131,13 +164,21 @@ export default async function ComparePage({
 
               {p.ai_score != null ? (
                 <div className="mt-4 rounded-xl bg-[var(--color-stone-100)] p-4 text-sm">
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex items-baseline justify-between gap-3">
                     <span className="font-medium text-[var(--color-midnight-green)]">
                       تقييم الذكاء الاصطناعي
                     </span>
-                    <span className="num text-lg font-semibold">
-                      {p.ai_score}/100
-                    </span>
+                    {showAiConfidenceUi && p.ai_confidence ? (
+                      <ConfidenceBadge
+                        level={p.ai_confidence}
+                        sampleSize={p.ai_sample_size}
+                        variancePct={p.ai_variance_pct}
+                      />
+                    ) : (
+                      <span className="num text-lg font-semibold">
+                        {p.ai_score}/100
+                      </span>
+                    )}
                   </div>
                   {p.ai_summary ? (
                     <p className="mt-2 text-sm text-[var(--color-charcoal)]/80">
@@ -168,12 +209,27 @@ export default async function ComparePage({
                       </ul>
                     </div>
                   ) : null}
+                  {showAiConfidenceUi ? (
+                    <div className="mt-3 flex justify-end">
+                      <AIDisagreeButton proposalId={p.id} />
+                    </div>
+                  ) : null}
                 </div>
               ) : Date.now() - new Date(p.created_at).getTime() <
                 AI_PENDING_WINDOW_MS ? (
-                <p className="mt-4 text-xs text-[var(--color-stone-600)]">
-                  جارٍ تقييم العرض من الذكاء الاصطناعي…
-                </p>
+                showAiConfidenceUi ? (
+                  <div className="mt-4">
+                    <AIFallback reason="pending" />
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs text-[var(--color-stone-600)]">
+                    جارٍ تقييم العرض من الذكاء الاصطناعي…
+                  </p>
+                )
+              ) : showAiConfidenceUi ? (
+                <div className="mt-4">
+                  <AIFallback reason="service_error" />
+                </div>
               ) : (
                 <p className="mt-4 text-xs text-[var(--color-stone-600)]">
                   تقييم الذكاء الاصطناعي غير متاح لهذا العرض حالياً.
@@ -198,7 +254,8 @@ export default async function ComparePage({
               </div>
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       )}
     </div>
   );
