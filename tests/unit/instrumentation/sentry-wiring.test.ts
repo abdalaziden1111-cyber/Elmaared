@@ -22,6 +22,7 @@ vi.mock('@sentry/nextjs', () => ({
 }));
 
 const ORIGINAL_DSN = process.env.SENTRY_DSN;
+const ORIGINAL_PUBLIC_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 beforeEach(() => {
   initMock.mockReset();
@@ -33,6 +34,8 @@ beforeEach(() => {
 afterEach(() => {
   if (ORIGINAL_DSN === undefined) delete process.env.SENTRY_DSN;
   else process.env.SENTRY_DSN = ORIGINAL_DSN;
+  if (ORIGINAL_PUBLIC_DSN === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+  else process.env.NEXT_PUBLIC_SENTRY_DSN = ORIGINAL_PUBLIC_DSN;
 });
 
 describe('instrumentation.ts — Sentry wiring', () => {
@@ -85,5 +88,41 @@ describe('instrumentation.ts — Sentry wiring', () => {
     const s = scope as { level?: string; extra?: Record<string, unknown> };
     expect(s.level).toBe('warning');
     expect(s.extra?.user_id).toBe('u_42');
+  });
+});
+
+describe('instrumentation-client.ts — browser Sentry wiring', () => {
+  it('is a no-op when NEXT_PUBLIC_SENTRY_DSN is unset', async () => {
+    delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    const { register } = await import('@/instrumentation-client');
+    await register();
+    expect(initMock).not.toHaveBeenCalled();
+  });
+
+  it('inits Sentry on the client with replay options when DSN is set', async () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = 'https://browser@example.ingest.sentry.io/2';
+    const { register } = await import('@/instrumentation-client');
+    await register();
+    expect(initMock).toHaveBeenCalledTimes(1);
+    const args = initMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(args.dsn).toBe('https://browser@example.ingest.sentry.io/2');
+    expect(args.replaysOnErrorSampleRate).toBe(1.0);
+  });
+
+  it('tags client-side log.error captures with runtime=browser', async () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = 'https://browser@example.ingest.sentry.io/2';
+    const { register } = await import('@/instrumentation-client');
+    await register();
+
+    const { log } = await import('@/lib/utils/logger');
+    const err = new Error('client boom');
+    log.error('client_test_event', err, { tab_id: 'abc' });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    const [, scope] = captureExceptionMock.mock.calls[0] ?? [];
+    const s = scope as { tags?: Record<string, string>; extra?: Record<string, unknown> };
+    expect(s.tags?.runtime).toBe('browser');
+    expect(s.tags?.event).toBe('client_test_event');
+    expect(s.extra?.tab_id).toBe('abc');
   });
 });

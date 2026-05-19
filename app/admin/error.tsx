@@ -1,11 +1,22 @@
 'use client';
 
+import { useEffect } from 'react';
+import { log } from '@/lib/utils/logger';
+
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    log.error('admin_error_boundary', error, {
+      digest: error.digest,
+      scope: 'admin',
+    });
+  }, [error]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8" dir="rtl">
       <h1 className="text-3xl font-semibold text-[var(--color-danger)]">خطأ</h1>
