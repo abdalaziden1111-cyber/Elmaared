@@ -82,6 +82,35 @@ Hosting:   Vercel (Fluid Compute, Node.js 24)
 
 ---
 
+## Demo
+
+For local UX-Plan-v2 demos (Phase U). Requires `.env.local` with
+`NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set, plus
+Phase-Z2 migrations applied to the live dev DB (see
+[`ai-documents/Z2-DB-APPLY-LOG.md`](./ai-documents/Z2-DB-APPLY-LOG.md)).
+
+```bash
+# One-time setup (creates the 3 test personas):
+pnpm exec node scripts/seed-test-users.mjs
+
+# Seed full demo state (5 suppliers + 2 RFQs + proposals + escrow + invoice):
+pnpm demo:seed
+
+# Reset between demos — preserves test users + immutable audit ledger,
+# wipes demo-specific RFQs (RFQ-DEMO-*) + demo suppliers, re-seeds.
+pnpm demo:reset
+
+# Skip the confirmation prompt:
+pnpm demo:reset -- --yes
+```
+
+Flag-flip + verified-component matrix lives in
+[`ai-documents/PHASE-U-FLAG-GUIDE.md`](./ai-documents/PHASE-U-FLAG-GUIDE.md)
+and
+[`ai-documents/UI-ACTIVATION-VERIFIED.md`](./ai-documents/UI-ACTIVATION-VERIFIED.md).
+
+---
+
 ## License
 
 سري وخاص — Confidential © 2026

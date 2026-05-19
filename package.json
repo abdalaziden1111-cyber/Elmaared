@@ -16,7 +16,8 @@
     "db:reset": "supabase db reset",
     "db:migrate": "supabase db push",
     "mail:setup": "node scripts/setup-resend-domain.mjs",
-    "demo:seed": "node scripts/seed-demo.mjs"
+    "demo:seed": "node scripts/seed-demo.mjs",
+    "demo:reset": "node scripts/demo-reset.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.75",
