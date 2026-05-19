@@ -16,10 +16,25 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { SERVICE_TYPES } from '@/lib/constants/service-types';
 import { CITIES } from '@/lib/constants/cities';
 import { cn } from '@/lib/utils/cn';
+import { flags } from '@/lib/feature-flags';
+import { SingleScreenView } from './single-screen-view';
 
 const STEPS = ['الخدمة', 'التفاصيل', 'الميزانية', 'الملفات', 'مراجعة ونشر'] as const;
 
 export default function NewRfqPage() {
+  // UX Plan v2 Decision #02 — when FF_RFQ_SINGLE_SCREEN is on, render the
+  // new single-screen view instead of the legacy 5-step wizard. The hook
+  // call order in the wizard below still runs for the flag-off path; calling
+  // the flag check at the top of the component is fine because flags are
+  // read once at module init.
+  if (flags.RFQ_SINGLE_SCREEN) {
+    return <SingleScreenView />;
+  }
+
+  return <WizardView />;
+}
+
+function WizardView() {
   const router = useRouter();
   const { data, setField, setDetail, reset } = useRfqWizardStore();
   const [step, setStep] = useState(0);
