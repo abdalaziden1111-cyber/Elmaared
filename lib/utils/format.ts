@@ -3,8 +3,42 @@
 // invalid date strings, null/undefined, etc.). The UI gets something readable
 // instead of a server error.
 
+import { flags } from '@/lib/feature-flags';
+import { formatHijriLong } from './hijri';
+
 const PLACEHOLDER = '—';
 const RIYAL = '﷼';
+
+// UX Plan v2 Decision #06 (Sprint 4 S4.1) — numeral system preference.
+// 'arabic-indic' renders ١٢٣ via `ar-EG` locale; 'latin' renders 123 via
+// `en-US`. Caller-overridable so a server-component can pass an explicit
+// preference loaded from `profiles.preferred_numerals`.
+export type NumeralSystem = 'arabic-indic' | 'latin';
+
+function resolveNumeralLocale(
+  preference: NumeralSystem | 'auto' = 'auto',
+): string {
+  if (preference === 'arabic-indic') return 'ar-EG';
+  if (preference === 'latin') return 'en-US';
+  // 'auto' — fall through to the global FF flag.
+  return flags.ARABIC_NUMERALS ? 'ar-EG' : 'en-US';
+}
+
+/**
+ * Render an integer or float with the active numeral system. Defaults to
+ * 'auto' (uses the FF flag); pass a specific preference when the caller has
+ * already read it from the user's profile.
+ */
+export function formatNumber(
+  n: number | null | undefined,
+  preference: NumeralSystem | 'auto' = 'auto',
+  options: Intl.NumberFormatOptions = {},
+): string {
+  if (n == null || typeof n !== 'number' || !Number.isFinite(n)) {
+    return PLACEHOLDER;
+  }
+  return new Intl.NumberFormat(resolveNumeralLocale(preference), options).format(n);
+}
 
 export function formatCurrency(
   amount: number | null | undefined,
@@ -28,6 +62,18 @@ export function formatDate(
 ): string {
   const d = toValidDate(date);
   if (!d) return PLACEHOLDER;
+  // Plan v2 §6 (Sprint 4 S4.1) — when FF_HIJRI is on, the canonical date
+  // string for Saudi users is Hijri-first with the Gregorian parenthetical:
+  //   "١٥ شعبان ١٤٤٧ (٢٤ فبراير ٢٠٢٦)"
+  if (flags.HIJRI_DEFAULT && locale === 'ar') {
+    const hijri = formatHijriLong(d, 'ar');
+    const gregorian = new Intl.DateTimeFormat('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(d);
+    return `${hijri} (${gregorian})`;
+  }
   return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
     year: 'numeric',
     month: 'long',
