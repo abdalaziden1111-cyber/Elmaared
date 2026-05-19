@@ -16,7 +16,7 @@ This file is the **single source of truth** for what's live and what's in flight
 | Sprint 0 | ✅ Done | S0.1, S0.2, S0.3 | ✅ | Competitor badge, Escrow→أمانة (flag), microcopy |
 | **Sprint 1** | ✅ Done | S1.0–S1.7 | ✅ | Amanah-default cleanup + AI Confidence Framework |
 | Sprint 2 | ✅ Done | S2.1–S2.5 | ✅ | RFQ Wizard → Single-Screen + Smart Defaults |
-| Sprint 3 | ⏳ Queued | S3.1–S3.5 | — | Trust Architecture (4 layers) |
+| Sprint 3 | ✅ Done | S3.0–S3.6 | ✅ | Trust Architecture (4 layers) |
 | Sprint 4 | ⏳ Queued | S4.1–S4.8 | — | Saudi Cultural Layer |
 | Sprint 5 | ⏳ Queued | S5.1–S5.4 | — | Failure Modes + Concierge + Regulatory |
 | Sprint 6 | ⏳ Queued | S6.1–S6.9 | — | Performance / Core Web Vitals |
@@ -34,8 +34,8 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 | `FF_AMANAH` | Sprint 0 → **removed in S1.0** | 🚫 Retired (2026-05-19) | Amanah is the canonical default. |
 | `FF_AI_CONFIDENCE` | Sprint 1 | _Not yet wired_ | 4-level visual badge |
 | `FF_RFQ_SINGLE_SCREEN` | Sprint 2 | ✅ Wired (default OFF) | Single-screen RFQ + Smart Defaults |
-| `FF_TRUST` | Sprint 3 | _Not yet wired_ | Identity + Process + Outcome bars |
-| `FF_CELEBRATION` | Sprint 3 | _Not yet wired_ | Confetti + milestones |
+| `FF_TRUST` | Sprint 3 | ✅ Wired (default OFF) | IdentityBadges + TrustBar live on discover/compare/escrow |
+| `FF_CELEBRATION` | Sprint 3 | ✅ Wired (default OFF) | CelebrationModal component built; page-trigger placement deferred |
 | `FF_HIJRI` | Sprint 4 | _Not yet wired_ | Hijri-default dates |
 | `FF_PRAYER` | Sprint 4 | _Not yet wired_ | Prayer times widget |
 | `FF_NUMERALS` | Sprint 4 | _Not yet wired_ | Arabic-Indic digits |
@@ -391,6 +391,13 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S2.2 | `32648d9` | feat(s2.2): extract 3 reusable RFQ section components |
 | S2.3 | `6c5f83d` | feat(s2.3): SingleScreenView + flag-aware switch in new RFQ page |
 | S2.4 | `5fa5578` | feat(s2.4): Smart Defaults engine for the single-screen RFQ form |
+| Sprint 2 summary | `b7303db` | docs(s2): Sprint 2 final summary + commit log |
+| S3.0 | `b9d14fc` | feat(s3.0): Supabase migrations #3 + #4 — trust signals + milestones |
+| S3.1 | `1d68921` | feat(s3.1): IdentityBadges component — Trust Layer 1 |
+| S3.2 | `1e32266` | feat(s3.2): LiveTimeline component — Trust Layer 2 |
+| S3.3 | `0ca4b29` | feat(s3.3): TrustBar component — Trust Layer 3 |
+| S3.4 | `5e43b2c` | feat(s3.4): CelebrationModal + canvas-confetti — Trust Layer 4 |
+| S3.5 | `bb56007` | feat(s3.5): wire IdentityBadges + TrustBar into discover / compare / escrow |
 
 ---
 
@@ -455,3 +462,28 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 **Known UX limitation (not blocking):** Radix's `defaultValue` is uncontrolled, so the Budget accordion doesn't auto-open when the user picks a service. The trigger copy ("اختياري — سنستخدم تقديرات السوق إذا تركته") signals openability; a future polish PR can switch to controlled `value`+`onValueChange` to auto-expand on serviceType change.
 
 **Sprint 3 next:** Trust Architecture (4 layers — Identity, Process, Outcome, Emotional) — 12–14 days.
+
+---
+
+## Sprint 3 Summary (2026-05-19)
+
+| # | Task | Tests | Commit |
+|---|------|-------|--------|
+| S3.0 | Supabase migrations #3 + #4 (supplier_trust_signals + user_milestones + ENUM milestone_type) | 924/924 | `b9d14fc` |
+| S3.1 | `<IdentityBadges>` — Layer 1 (5 verification badges, full + compact variants) | 932/932 (+8) | `1d68921` |
+| S3.2 | `<LiveTimeline>` — Layer 2 (event log + SLA banner, 6 event kinds, 4 SLA states) | 940/940 (+8) | `1e32266` |
+| S3.3 | `<TrustBar>` — Layer 3 (3 reassurance pillars: Amanah + Disputes + Fazaa) | 947/947 (+7) | `0ca4b29` |
+| S3.4 | `<CelebrationModal>` — Layer 4 + canvas-confetti lazy-load + idempotent claim action | 955/955 (+8) | `5e43b2c` |
+| S3.5 | Wire IdentityBadges (full + compact) + TrustBar into discover / compare / escrow pages | 955/955 | `bb56007` |
+
+**Net additions:** +31 tests · 2 Supabase migrations · 4 new components · 1 server action (milestones) · 1 ENUM (`milestone_type`) · 2 new tables (`supplier_trust_signals`, `user_milestones`) · 1 new dependency (`canvas-confetti` lazy-loaded).
+
+**Browser-verified (flag OFF, default):** all three touched pages render byte-for-byte identical to pre-Sprint-3.
+
+**Browser verification with flag ON deferred** until migrations are applied (`pnpm db:migrate`). The page-side SELECTs degrade gracefully — `supplier_trust_signals` queries return empty arrays before the migration lands, so IdentityBadges falls through to its "التحقق من هوية المورد قيد المراجعة" placeholder.
+
+**Deferred follow-ups (non-blocking, documented):**
+- LiveTimeline page-wiring waits on the Project Execution page (closest existing surface is RFQ detail).
+- CelebrationModal page-trigger waits on a decision about whether to fire on dashboard mount, RFQ-created success path, or both.
+
+**Sprint 4 next:** Saudi Cultural Layer (Hijri default, Prayer times widget, Arabic-Indic numerals, 50 Saudi names library, Saudi green token) — 8–10 days.
