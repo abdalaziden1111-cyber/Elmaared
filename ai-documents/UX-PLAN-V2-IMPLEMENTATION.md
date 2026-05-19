@@ -278,8 +278,65 @@ Each reason ships a sensible default `whatNext` body. Both can be overridden via
 
 
 
-### S1.6 — AIOverride + Bias Disclosure page
-_pending_
+### S1.6 — AIOverride + Bias Disclosure page ✅
+
+**Done:** the two halves of Decision #01's "override + accountability" pair — a reusable AIOverride wrapper for any user-controllable AI default, and a public `/legal/ai-models` page that satisfies SDAIA's transparency requirement (Plan v2 Decision #11).
+
+#### `<AIOverride>` component
+
+**File:** [components/ai/ai-override.tsx](../components/ai/ai-override.tsx) (~65 LOC).
+
+Wraps any input that was prefilled by an AI suggestion. The AI value is shown as a chip above the input; when the user types something else, a warning-toned banner appears with "تجاوزت اقتراح AI" + a one-click "استعد اقتراح AI" reset button. The AI input is **set aside, not erased** — Josh Clark's rule from Debate 01.
+
+**API:**
+```tsx
+<AIOverride
+  aiSuggestion="42,000 ﷼"
+  userValueDiffers={value !== 42000}
+  onResetToAi={() => setValue(42000)}
+  label="الميزانية المقترحة"
+>
+  <input type="number" value={value} onChange={...} />
+</AIOverride>
+```
+
+Tests: [tests/unit/components/ai-override.test.tsx](../tests/unit/components/ai-override.test.tsx) — 5 cases:
+- Chip + child input render.
+- Override banner hidden when not diverged.
+- Override banner + reset button visible when diverged.
+- Reset button click forwards `onResetToAi`.
+- Optional `label` renders above the chip.
+
+Pre-wired for Sprint 2 (Smart Defaults on the new single-screen RFQ form).
+
+#### `/legal/ai-models` AI Model Card page
+
+**File:** [app/\[locale\]/(marketing)/legal/ai-models/page.tsx](<../app/[locale]/(marketing)/legal/ai-models/page.tsx>) (~150 LOC).
+
+Public, no-auth page that lists all 4 AI surfaces used in Elmaared (per Plan v2 §5 model card table):
+
+| Model | Purpose |
+|-------|---------|
+| عين السوق (Pricing) | RAG on past quotes for fair-range estimation |
+| AI تحليل العروض | Claude Sonnet 4.6 scoring on 5 axes |
+| AI توثيق الاتفاق | Claude + Saudi legal templates for contract diff |
+| AI Lead Scoring | Hot/Warm/Cold visitor classification on Day-of |
+
+Each card discloses:
+- The exact model (e.g. "Anthropic Claude Sonnet 4.6").
+- Training data source.
+- Confidence threshold that triggers fallback.
+- Fallback behavior.
+- **Bias disclosure** — highlighted in a warning-toned panel.
+
+Header shows the most recent review date (Hijri + Gregorian); the page is reviewed every 6 months per the SDAIA Track O cadence. Page closes with the contact channel for bias reports (`ai-models@elmaared.com`) and a pointer to the in-product "أنا لا أوافق" button.
+
+**Verification:**
+- `pnpm test` ✅ **915/915 pass** (was 910 + 5 new AIOverride cases).
+- `pnpm typecheck` ✅ clean.
+- Browser: `/ar/legal/ai-models` renders the H1, 4 cards (first is "عين السوق (Pricing)"), and the SDAIA disclosure block. Screenshot captured.
+
+
 
 ### S1.7 — Apply to compare page
 _pending_
@@ -297,6 +354,7 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S1.2 | `f64658a` | feat(s1.2): ConfidenceBadge component |
 | S1.3 | `b36a1bb` | feat(s1.3): MarketRange component — "عين السوق" price-range bar |
 | S1.4 | `f01ee5a` | feat(s1.4): AIDisagreeButton + ai_feedback table (migration #2) |
+| S1.5 | `f7607c0` | feat(s1.5): AIFallback component — explain why AI is silent |
 
 ---
 
