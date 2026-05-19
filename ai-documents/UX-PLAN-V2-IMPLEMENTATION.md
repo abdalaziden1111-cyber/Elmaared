@@ -15,7 +15,7 @@ This file is the **single source of truth** for what's live and what's in flight
 | Pre-Sprint 0 | ✅ Done | F.1, F.1b, F.2, F.3 | ✅ | Feature flags + analytics + research tracker |
 | Sprint 0 | ✅ Done | S0.1, S0.2, S0.3 | ✅ | Competitor badge, Escrow→أمانة (flag), microcopy |
 | **Sprint 1** | ✅ Done | S1.0–S1.7 | ✅ | Amanah-default cleanup + AI Confidence Framework |
-| Sprint 2 | ⏳ Queued | S2.1–S2.4 | — | RFQ Wizard → Single-Screen |
+| Sprint 2 | ✅ Done | S2.1–S2.5 | ✅ | RFQ Wizard → Single-Screen + Smart Defaults |
 | Sprint 3 | ⏳ Queued | S3.1–S3.5 | — | Trust Architecture (4 layers) |
 | Sprint 4 | ⏳ Queued | S4.1–S4.8 | — | Saudi Cultural Layer |
 | Sprint 5 | ⏳ Queued | S5.1–S5.4 | — | Failure Modes + Concierge + Regulatory |
@@ -33,7 +33,7 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 |------|--------|--------|-------|
 | `FF_AMANAH` | Sprint 0 → **removed in S1.0** | 🚫 Retired (2026-05-19) | Amanah is the canonical default. |
 | `FF_AI_CONFIDENCE` | Sprint 1 | _Not yet wired_ | 4-level visual badge |
-| `FF_RFQ_SINGLE_SCREEN` | Sprint 2 | _Not yet wired_ | Single-screen RFQ |
+| `FF_RFQ_SINGLE_SCREEN` | Sprint 2 | ✅ Wired (default OFF) | Single-screen RFQ + Smart Defaults |
 | `FF_TRUST` | Sprint 3 | _Not yet wired_ | Identity + Process + Outcome bars |
 | `FF_CELEBRATION` | Sprint 3 | _Not yet wired_ | Confetti + milestones |
 | `FF_HIJRI` | Sprint 4 | _Not yet wired_ | Hijri-default dates |
@@ -386,6 +386,11 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S1.5 | `f7607c0` | feat(s1.5): AIFallback component — explain why AI is silent |
 | S1.6 | `5f776cc` | feat(s1.6): AIOverride wrapper + /legal/ai-models bias-disclosure page |
 | S1.7 | `842db4b` | feat(s1.7): wire AI confidence stack into compare + proposal-detail |
+| Sprint 1 summary | `c649443` | docs(s1): Sprint 1 final summary in UX-PLAN-V2-IMPLEMENTATION.md |
+| S2.1 | `e984d1a` | feat(s2.1): add shadcn-style Accordion primitive |
+| S2.2 | `32648d9` | feat(s2.2): extract 3 reusable RFQ section components |
+| S2.3 | `6c5f83d` | feat(s2.3): SingleScreenView + flag-aware switch in new RFQ page |
+| S2.4 | `5fa5578` | feat(s2.4): Smart Defaults engine for the single-screen RFQ form |
 
 ---
 
@@ -421,3 +426,32 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 - `20261119000002_ai_feedback.sql` (table + ENUM `ai_feedback_reason` + RLS + trigger)
 
 **Sprint 2 next:** RFQ Wizard → Single-Screen (10–12 days). Depends on `<MarketRange>` for Smart Defaults — already in place.
+
+---
+
+## Sprint 2 Summary (2026-05-19)
+
+| # | Task | Tests | Commit |
+|---|------|-------|--------|
+| S2.1 | shadcn Accordion primitive | 918/918 (+3) | `e984d1a` |
+| S2.2 | Extract 3 RFQ section components (ServiceSection, BudgetSection, FilesSection) + SelectField helper | 918/918 | `32648d9` |
+| S2.3 | SingleScreenView + flag-aware switch in `new/page.tsx` | 918/918 | `6c5f83d` |
+| S2.4 | Smart Defaults engine — pure helper, server action, BudgetSection wiring | 924/924 (+6) | `5fa5578` |
+
+**Net additions:** +9 tests · 1 shadcn primitive (Accordion) · 4 section files · 1 SingleScreenView · 1 pure helper (`lib/rfq/smart-defaults.ts`) · 1 server action (`smart-defaults.ts`).
+
+**FF_RFQ_SINGLE_SCREEN behavior:**
+- OFF (default): legacy 5-step wizard renders unchanged.
+- ON: SingleScreenView with three sections — Service (always visible) + Budget (accordion) + Files (accordion). Smart Defaults banner inside Budget surfaces a `"اقتراح من سوق Elmaared: X – Y ﷼"` chip with a one-click "تطبيق الاقتراح" button when the user picks a service.
+
+**Browser-verified end-to-end:**
+- Logged in as `ahmed.client.test`, visited `/ar/dashboard/rfqs/new` with `FF_RFQ_SINGLE=true`.
+- Service section renders 4 service cards. Picking "تصميم وتنفيذ أجنحة" highlights it (aria-checked) and triggers smart-defaults fetch.
+- Budget accordion opens on click → Smart Defaults banner appears with real market-derived range ("57,000 ﷼ – 78,800 ﷼ (تقريبي)") proving the server action + helper end-to-end.
+- Files accordion present and toggles.
+- Submit bar shows "احفظ كمسودة" + "أرسلي الطلب الآن" — both disabled until service + title (≥5 chars) are set, with a live hint explaining why.
+- Flag flipped OFF after verification → legacy stepper returns intact.
+
+**Known UX limitation (not blocking):** Radix's `defaultValue` is uncontrolled, so the Budget accordion doesn't auto-open when the user picks a service. The trigger copy ("اختياري — سنستخدم تقديرات السوق إذا تركته") signals openability; a future polish PR can switch to controlled `value`+`onValueChange` to auto-expand on serviceType change.
+
+**Sprint 3 next:** Trust Architecture (4 layers — Identity, Process, Outcome, Emotional) — 12–14 days.
