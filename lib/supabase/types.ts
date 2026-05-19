@@ -48,6 +48,12 @@ type ProposalStatus =
 export type AiConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
 // UX Plan v2 Decision #01 — user pushback bucket (Sprint 1 S1.4).
 export type AiFeedbackReason = 'price_too_high' | 'price_too_low' | 'illogical';
+// UX Plan v2 Decision #07 + #13 — celebration milestone bucket (Sprint 3 S3.4).
+export type MilestoneType =
+  | 'first_rfq'
+  | 'first_deal'
+  | '100k_gmv'
+  | 'yearly_anniversary';
 type EscrowStatus =
   | 'awaiting_deposit'
   | 'deposit_received'
@@ -478,6 +484,23 @@ interface AiFeedbackRow {
   updated_at: string;
 }
 
+interface SupplierTrustSignalsRow {
+  supplier_id: string;
+  identity_verified: boolean;
+  zatca_verified: boolean;
+  references_count: number;
+  photo_id_uploaded: boolean;
+  gov_id_verified: boolean;
+  updated_at: string;
+}
+
+interface UserMilestoneRow {
+  id: string;
+  user_id: string;
+  milestone_type: MilestoneType;
+  achieved_at: string;
+}
+
 interface CeoAccessRow {
   id: string;
   company_id: string;
@@ -512,6 +535,8 @@ export interface Database {
       audit_logs: RowToTable<AuditLogRow>;
       ceo_access: RowToTable<CeoAccessRow>;
       ai_feedback: RowToTable<AiFeedbackRow>;
+      supplier_trust_signals: RowToTable<SupplierTrustSignalsRow>;
+      user_milestones: RowToTable<UserMilestoneRow>;
     };
     Views: {
       active_rfqs: { Row: RfqRow };
@@ -529,6 +554,7 @@ export interface Database {
       escrow_event_type: EscrowEventType;
       ai_confidence_level: AiConfidenceLevel;
       ai_feedback_reason: AiFeedbackReason;
+      milestone_type: MilestoneType;
     };
   };
 }
