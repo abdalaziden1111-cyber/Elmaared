@@ -47,3 +47,6 @@ supabase/.temp/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Phase U6 — local Playwright auth caches (per-spec login state)
+tests/e2e/.auth/
