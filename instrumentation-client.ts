@@ -1,25 +1,13 @@
 // Client-side error capture for Next.js 16+. Runs once in the browser.
-// Like instrumentation.ts, we only wire Sentry when both:
-//   1. NEXT_PUBLIC_SENTRY_DSN is set
-//   2. The optional `@sentry/nextjs` package is installed
-// Otherwise this file is a no-op, keeping local dev frictionless.
+// @sentry/nextjs is now an installed dependency (Phase Z2 Item 4); the
+// integration still only activates when NEXT_PUBLIC_SENTRY_DSN is set so
+// dev runs stay free of Sentry network calls.
 
 export async function register() {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
 
   try {
-    // @ts-expect-error — optional dependency, may not be installed
-    const sentryAny = await import('@sentry/nextjs').catch(() => null);
-    if (!sentryAny) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[instrumentation-client] NEXT_PUBLIC_SENTRY_DSN is set but @sentry/nextjs is not installed.'
-      );
-      return;
-    }
-    const Sentry = sentryAny as {
-      init: (opts: Record<string, unknown>) => void;
-    };
+    const Sentry = await import('@sentry/nextjs');
 
     Sentry.init({
       dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,

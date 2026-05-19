@@ -1,5 +1,8 @@
 allowBuilds:
   '@parcel/watcher': true
+  # @sentry/cli is for sourcemap upload — out of scope for Phase Z2.
+  # Set to true once we wire sourcemaps to a Sentry project.
+  '@sentry/cli': false
   '@swc/core': true
   sharp: true
   supabase: true

@@ -1,44 +1,20 @@
 // Next.js calls register() once per server runtime at boot. We use it to
-// wire up our structured logger to a real reporter (Sentry, Datadog, etc.)
-// when a DSN is present, falling back to the default consoleReporter
-// otherwise so local dev keeps working without any setup.
+// wire up our structured logger to a real reporter (Sentry) when a DSN is
+// present, falling back to the default consoleReporter otherwise so local
+// dev keeps working without any setup.
 //
-// Sentry isn't a hard dependency — we dynamically import it only when a
-// DSN is set, and skip wiring entirely if the package isn't installed.
-// Run `pnpm add @sentry/nextjs && npx @sentry/wizard@latest -i nextjs` to
-// turn the integration on.
+// @sentry/nextjs is now an installed dependency (Phase Z2 Item 4), but the
+// integration still only activates when SENTRY_DSN is set — keeps dev
+// runs free of Sentry network calls.
 
 export async function register() {
   if (!process.env.SENTRY_DSN) return;
 
   try {
-    const [{ setLogReporter }, sentryAny] = await Promise.all([
+    const [{ setLogReporter }, Sentry] = await Promise.all([
       import('@/lib/utils/logger'),
-      // @ts-expect-error — optional dependency, may not be installed
-      import('@sentry/nextjs').catch(() => null),
+      import('@sentry/nextjs'),
     ]);
-
-    if (!sentryAny) {
-      console.warn(
-        '[instrumentation] SENTRY_DSN is set but @sentry/nextjs is not installed.'
-      );
-      return;
-    }
-    const Sentry = sentryAny as {
-      init: (opts: Record<string, unknown>) => void;
-      captureException: (
-        err: unknown,
-        scope?: { tags?: Record<string, string>; extra?: Record<string, unknown> }
-      ) => void;
-      captureMessage: (
-        msg: string,
-        scope?: {
-          level?: string;
-          tags?: Record<string, string>;
-          extra?: Record<string, unknown>;
-        }
-      ) => void;
-    };
 
     Sentry.init({
       dsn: process.env.SENTRY_DSN,

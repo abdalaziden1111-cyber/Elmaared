@@ -21,6 +21,7 @@
     "@ai-sdk/anthropic": "^3.0.75",
     "@ai-sdk/gateway": "^3.0.110",
     "@hookform/resolvers": "^5.2.2",
+    "@sentry/nextjs": "^10.53.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/typography": "^0.5.19",
@@ -69,6 +70,7 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@parcel/watcher",
+      "@sentry/cli",
       "@swc/core",
       "sharp",
       "supabase",
