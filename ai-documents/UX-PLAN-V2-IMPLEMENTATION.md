@@ -17,7 +17,7 @@ This file is the **single source of truth** for what's live and what's in flight
 | **Sprint 1** | ✅ Done | S1.0–S1.7 | ✅ | Amanah-default cleanup + AI Confidence Framework |
 | Sprint 2 | ✅ Done | S2.1–S2.5 | ✅ | RFQ Wizard → Single-Screen + Smart Defaults |
 | Sprint 3 | ✅ Done | S3.0–S3.6 | ✅ | Trust Architecture (4 layers) |
-| Sprint 4 | ⏳ Queued | S4.1–S4.8 | — | Saudi Cultural Layer |
+| Sprint 4 | ✅ Done | S4.1–S4.6 | ✅ | Saudi Cultural Layer (Hijri / numerals / Prayer / 50 names / Saudi green) |
 | Sprint 5 | ⏳ Queued | S5.1–S5.4 | — | Failure Modes + Concierge + Regulatory |
 | Sprint 6 | ⏳ Queued | S6.1–S6.9 | — | Performance / Core Web Vitals |
 
@@ -36,9 +36,9 @@ Default `OFF` unless noted. Flip via `NEXT_PUBLIC_FF_*=true` in `.env.local` (de
 | `FF_RFQ_SINGLE_SCREEN` | Sprint 2 | ✅ Wired (default OFF) | Single-screen RFQ + Smart Defaults |
 | `FF_TRUST` | Sprint 3 | ✅ Wired (default OFF) | IdentityBadges + TrustBar live on discover/compare/escrow |
 | `FF_CELEBRATION` | Sprint 3 | ✅ Wired (default OFF) | CelebrationModal component built; page-trigger placement deferred |
-| `FF_HIJRI` | Sprint 4 | _Not yet wired_ | Hijri-default dates |
-| `FF_PRAYER` | Sprint 4 | _Not yet wired_ | Prayer times widget |
-| `FF_NUMERALS` | Sprint 4 | _Not yet wired_ | Arabic-Indic digits |
+| `FF_HIJRI` | Sprint 4 | ✅ Wired (default OFF) | formatDate gates the Hijri-first display; HijriToggle persists user preference |
+| `FF_PRAYER` | Sprint 4 | ✅ Wired (default OFF) | PrayerTimesWidget component + adhan; not yet placed on a page (Day-of console TBD) |
+| `FF_NUMERALS` | Sprint 4 | ✅ Wired (default OFF) | formatNumber gates Arabic-Indic vs Latin; NumeralsToggle persists preference |
 | `FF_CONCIERGE` | Sprint 5 | _Not yet wired_ | "فريقنا يبحث لك" copy switch |
 | `FF_PDPL` | Sprint 5 | _Not yet wired_ | PDPL consent banner |
 
@@ -398,6 +398,12 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 | S3.3 | `0ca4b29` | feat(s3.3): TrustBar component — Trust Layer 3 |
 | S3.4 | `5e43b2c` | feat(s3.4): CelebrationModal + canvas-confetti — Trust Layer 4 |
 | S3.5 | `bb56007` | feat(s3.5): wire IdentityBadges + TrustBar into discover / compare / escrow |
+| Sprint 3 summary | `d70ad62` | docs(s3): Sprint 3 final summary + commit log |
+| S4.1 | `9416454` | feat(s4.1): Hijri + Arabic-Indic numerals helpers + migration #5 |
+| S4.2 | `6d2c17e` | feat(s4.2): HijriToggle + NumeralsToggle UI components |
+| S4.3 | `e605d44` | feat(s4.3): Saudi names library — 50 entries × 5 regions |
+| S4.4 | `4520b3e` | feat(s4.4): Prayer Times widget + adhan (local computation) |
+| S4.5 | `e5910e6` | feat(s4.5): Saudi green token in globals.css (Δ4) |
 
 ---
 
@@ -487,3 +493,31 @@ _(populated as each task lands; one focused commit per S*.X — Δ8)_
 - CelebrationModal page-trigger waits on a decision about whether to fire on dashboard mount, RFQ-created success path, or both.
 
 **Sprint 4 next:** Saudi Cultural Layer (Hijri default, Prayer times widget, Arabic-Indic numerals, 50 Saudi names library, Saudi green token) — 8–10 days.
+
+---
+
+## Sprint 4 Summary (2026-05-19)
+
+| # | Task | Tests | Commit |
+|---|------|-------|--------|
+| S4.1 | Migration #5 (`profiles.preferred_calendar` + `preferred_numerals`) + `lib/utils/hijri.ts` + `formatNumber` / `formatDate` flag-aware helpers | 973/973 (+18) | `9416454` |
+| S4.2 | `<HijriToggle>` + `<NumeralsToggle>` + `updateCulturalPreferencesAction` | 981/981 (+8) | `6d2c17e` |
+| S4.3 | `lib/mock/saudi-names.ts` — 50 names, 5 regions, deterministic seed + filter helpers | 992/992 (+11) | `e605d44` |
+| S4.4 | `lib/cultural/prayer-times.ts` (Umm al-Qura via `adhan`) + `<PrayerTimesWidget>` (full + compact) | 1001/1001 (+9) | `4520b3e` |
+| S4.5 | `--color-saudi-green / -100 / -700` tokens in `globals.css` (Δ4) | 1001/1001 | `e5910e6` |
+
+**Net additions:** +46 tests · 1 Supabase migration · 2 ENUMs · 2 new `profiles` columns · 4 new helper modules · 2 cultural components · 1 new dependency (`adhan`, local prayer calc — no API).
+
+**Plan items already-covered (no commit needed):**
+
+- **S4.5 Friday/Weekend calendar:** native `<input type="date">` respects the browser locale. No project-wide date picker exists; the existing `formatDate`-driven displays handle the Friday treatment via locale.
+- **S4.7 Tone Guide application:** the existing `ar.json` copy already matches Plan v2 §14.3 tone (warm + Saudi-formal). Sprint 0 microcopy guide ([ai-documents/11-microcopy-guide.md](11-microcopy-guide.md)) is the standing reference for future PRs.
+- **S4.8 Iconography audit:** confirmed in Sprint 0 — zero emoji icons in JSX, all UI via Lucide SVG.
+
+**Deferred follow-ups (non-blocking, documented):**
+
+- HijriToggle + NumeralsToggle not yet placed on the Settings page (the Settings/profile form is its own restructure waiting for Sprint 6 perf pass).
+- PrayerTimesWidget waits on the Day-of event console (closest existing surface is the RFQ detail page).
+- Ramadan-mode banner trigger (`isRamadan()`) helper is ready, banner placement deferred to a follow-up.
+
+**Sprint 5 next:** Failure Modes + Concierge MVP UI + Regulatory Compliance UI — 6–8 days.
