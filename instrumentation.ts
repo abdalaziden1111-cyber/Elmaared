@@ -8,6 +8,18 @@
 // runs free of Sentry network calls.
 
 export async function register() {
+  // V3.1 — wire the server-side PostHog reporter once at boot.
+  // No-ops when NEXT_PUBLIC_POSTHOG_KEY is missing (local dev default).
+  try {
+    const [{ setAnalyticsReporter }, { serverPosthogReporter }] = await Promise.all([
+      import('@/lib/analytics/events'),
+      import('@/lib/analytics/reporter-posthog-server'),
+    ]);
+    setAnalyticsReporter(serverPosthogReporter);
+  } catch (err) {
+    console.error('[instrumentation] PostHog reporter init failed:', err);
+  }
+
   if (!process.env.SENTRY_DSN) return;
 
   try {

@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { plexArabic, inter } from '../fonts';
 import '../globals.css';
 import { PDPLConsentBanner } from '@/components/legal/pdpl-consent';
+import { PosthogProvider } from '@/components/analytics/posthog-provider';
+import { createClient } from '@/lib/supabase/server';
 
 const SUPPORTED_LOCALES = ['ar', 'en'] as const;
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -36,10 +38,20 @@ export default async function LocaleLayout({
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
   const messages = await getMessages();
 
+  // V3.1 — pull the authed user id (if any) so PosthogProvider can call
+  // identify() right away. Anonymous visitors get a posthog-managed
+  // distinct_id and remain unidentified until they sign in.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <html lang={locale} dir={dir} className={`${plexArabic.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-cream font-arabic text-charcoal antialiased">
         <NextIntlClientProvider messages={messages} locale={locale}>
+          {/* PostHog browser init + identify(). Self-no-ops without an API key. */}
+          <PosthogProvider userId={user?.id ?? null} />
           {children}
           {/* PDPL consent banner — self-gates on flags.PDPL_CONSENT +
               localStorage. Renders only on first visit when flag is on. */}

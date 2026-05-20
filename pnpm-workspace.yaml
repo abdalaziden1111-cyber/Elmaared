@@ -4,6 +4,11 @@ allowBuilds:
   # Set to true once we wire sourcemaps to a Sentry project.
   '@sentry/cli': false
   '@swc/core': true
+  # core-js + protobufjs are transitive deps of posthog-node (Phase V3.1).
+  # Their build scripts only generate optional native helpers; we don't need
+  # them since posthog-node falls back to pure JS implementations.
+  core-js: false
+  protobufjs: false
   sharp: true
   supabase: true
   unrs-resolver: true

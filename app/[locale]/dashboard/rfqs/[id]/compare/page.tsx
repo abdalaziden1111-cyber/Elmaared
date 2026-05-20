@@ -9,6 +9,8 @@ import { ConfidenceBadge } from '@/components/ai/confidence-badge';
 import { MarketRange } from '@/components/ai/market-range';
 import { AIFallback } from '@/components/ai/ai-fallback';
 import { AIDisagreeButton } from '@/components/ai/ai-disagree-button';
+import { AbTracker } from '@/components/analytics/ab-tracker';
+import { experiments } from '@/lib/ab-test';
 import {
   IdentityBadges,
   type IdentityBadgeSignals,
@@ -126,6 +128,8 @@ export default async function ComparePage({
 
   return (
     <div>
+      {/* V3.2 — A/B assignment fires once per session when this page mounts. */}
+      <AbTracker userId={user.id} experimentKey={experiments.AI_CONFIDENCE_4LEVEL} />
       <Breadcrumbs
         items={[
           { href: '/dashboard', label: 'لوحة التحكم' },

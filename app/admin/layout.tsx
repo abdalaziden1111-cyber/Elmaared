@@ -18,7 +18,10 @@ export const metadata: Metadata = {
 const NAV_GROUPS: SidebarNavGroup[] = [
   {
     title: 'عام',
-    links: [{ href: '/admin', label: 'نظرة عامة' }],
+    links: [
+      { href: '/admin', label: 'نظرة عامة' },
+      { href: '/admin/analytics', label: 'التحليلات' },
+    ],
   },
   {
     title: 'المستخدمون',
