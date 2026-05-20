@@ -19,7 +19,8 @@ export type AiFallbackReason =
   | 'insufficient_data'
   | 'service_error'
   | 'unsupported'
-  | 'pending';
+  | 'pending'
+  | 'rate_limited';
 
 interface Props {
   reason: AiFallbackReason;
@@ -42,6 +43,7 @@ const HEADLINES: Record<AiFallbackReason, string> = {
   service_error: 'تقييم AI غير متاح مؤقتاً — حاول لاحقاً',
   unsupported: 'هذه الفئة لم نُدرّب AI عليها بعد',
   pending: 'يجري الآن تحليل AI لهذا العرض…',
+  rate_limited: 'تجاوزت حد الاستخدام اليومي للذكاء الاصطناعي',
 };
 
 const DEFAULT_WHAT_NEXT: Partial<Record<AiFallbackReason, string>> = {
@@ -50,6 +52,8 @@ const DEFAULT_WHAT_NEXT: Partial<Record<AiFallbackReason, string>> = {
   service_error: 'النتائج ستظهر تلقائياً فور عودة الخدمة. لا حاجة لإعادة التحميل.',
   unsupported: 'تواصل معنا لطلب تقدير مخصص خلال 24 ساعة.',
   pending: 'هذا قد يستغرق دقيقة. سنحدّث الصفحة تلقائياً عند الانتهاء.',
+  rate_limited:
+    'حد الاستخدام يُعاد ضبطه يومياً عند منتصف الليل (UTC). يمكنك المقارنة يدوياً من خلال السعر ومدة التسليم.',
 };
 
 export function AIFallback({

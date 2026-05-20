@@ -8,6 +8,10 @@ import {
   type ScoreProposalPromptInput,
 } from './prompts';
 import { computeMarketContext, deriveConfidence } from './confidence';
+import { assertDailyBudget, RateLimitError } from './rate-limit';
+import { hashKey, readCache, writeCache } from './cache';
+import { recordUsage } from './usage-log';
+import { computeCost } from './cost';
 import { log } from '@/lib/utils/logger';
 
 export const scoreSchema = z.object({
@@ -27,7 +31,15 @@ export const scoreSchema = z.object({
 // System prompt + input shape moved to lib/ai/prompts.ts for testability.
 interface ScoreInput extends ScoreProposalPromptInput {
   proposalId: string;
+  /**
+   * The user to bill the cost against (Phase V1.1). Typically the supplier
+   * who generated the work; null for system batch jobs (skips rate limit).
+   */
+  userId?: string | null;
 }
+
+// Shape stored in the AI cache. Matches what `scoreSchema.parse()` produces.
+type CachedScorePayload = z.infer<typeof scoreSchema>;
 
 // 12-month historical window for the market baseline. The committee
 // (Plan v2 §5, Debate 01) wanted a "recent enough to be relevant" anchor;
@@ -119,8 +131,65 @@ export async function scoreProposal(input: ScoreInput): Promise<void> {
     return;
   }
 
-  const { proposalId: _omit, ...promptInput } = input;
+  const { proposalId: _omit, userId, ...promptInput } = input;
   const prompt = buildScoreProposalPrompt(promptInput);
+
+  // Phase V1.1 — cache key is hashed over the prompt input (canonical JSON)
+  // plus the model + operation. Identical input → identical hash, regardless
+  // of object-key ordering or whitespace.
+  const cacheHash = hashKey({
+    operation: 'score_proposal',
+    model: PROPOSAL_SCORING_MODEL,
+    input: promptInput,
+  });
+
+  // Cache check — replay a prior gateway response without the round-trip
+  // or the cost. We still log the call (with cache_hit=true and $0 cost)
+  // so the admin dashboard sees the volume.
+  const cached = await readCache<CachedScorePayload>(cacheHash, admin);
+  if (cached) {
+    await admin
+      .from('proposals')
+      .update({
+        ai_score: cached.payload.score,
+        ai_summary: cached.payload.summary,
+        ai_strengths: cached.payload.strengths,
+        ai_concerns: cached.payload.concerns,
+        ...marketUpdate,
+      })
+      .eq('id', input.proposalId);
+    await recordUsage({
+      userId: userId ?? null,
+      operation: 'score_proposal',
+      tokensIn: 0,
+      tokensOut: 0,
+      model: cached.model,
+      cacheHit: true,
+      admin,
+    });
+    return;
+  }
+
+  // Rate limit check — throws RateLimitError when the user has spent at
+  // or above today's cap. Caught below and surfaced as a distinct summary
+  // so AIFallback can render `reason='rate_limited'`.
+  try {
+    await assertDailyBudget(userId ?? null, admin);
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      log.warn('ai.score_proposal.rate_limited');
+      await admin
+        .from('proposals')
+        .update({
+          ai_score: null,
+          ai_summary: '[rate-limited]',
+          ...marketUpdate,
+        })
+        .eq('id', input.proposalId);
+      return;
+    }
+    throw err;
+  }
 
   try {
     const result = await generateText({
@@ -144,6 +213,35 @@ export async function scoreProposal(input: ScoreInput): Promise<void> {
         ...marketUpdate,
       })
       .eq('id', input.proposalId);
+
+    // Persist to the cache and log usage. Both are best-effort — failure
+    // here doesn't roll back the proposal update. Read usage off the
+    // gateway response; the `ai` package exposes it under `result.usage`.
+    const usage = (result as { usage?: { inputTokens?: number; outputTokens?: number } }).usage;
+    const tokensIn = usage?.inputTokens ?? 0;
+    const tokensOut = usage?.outputTokens ?? 0;
+    const cost = computeCost({
+      tokensIn,
+      tokensOut,
+      model: PROPOSAL_SCORING_MODEL,
+    });
+
+    await writeCache({
+      hash: cacheHash,
+      operation: 'score_proposal',
+      payload: out,
+      model: PROPOSAL_SCORING_MODEL,
+      admin,
+    });
+    await recordUsage({
+      userId: userId ?? null,
+      operation: 'score_proposal',
+      tokensIn,
+      tokensOut,
+      model: PROPOSAL_SCORING_MODEL,
+      costUsd: cost,
+      admin,
+    });
   } catch (err) {
     log.error('ai.score_proposal.failed', err, { proposal_id: input.proposalId });
     await admin
