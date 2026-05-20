@@ -267,7 +267,7 @@ function runScript(scriptName) {
     );
   }
 
-  console.log('\n[2/3] Removing demo suppliers…');
+  console.log('\n[2/4] Removing demo suppliers…');
   for (const email of DEMO_SUPPLIER_EMAILS) {
     try {
       await deleteUserDeep(email);
@@ -277,7 +277,27 @@ function runScript(scriptName) {
     }
   }
 
-  console.log('\n[3/3] Re-seeding demo data…');
+  // Phase W7 — Phase V wipes (belt-and-suspenders alongside seed's
+  // inline wipes). Tables only exist after W1 migrations applied; we
+  // tolerate "table not found" errors so the reset still works on a
+  // pre-migration DB.
+  console.log('\n[3/4] Wiping Phase V data (mock-seed rows + synthetic leads)…');
+  const phaseVWipes = [
+    () => sb.from('ai_usage_log').delete().eq('model', 'mock-seed'),
+    () => sb.from('ai_score_cache').delete().like('hash', 'mock-seed-%'),
+    () => sb.from('lead_scores').delete().like('narrative', '[mock]%'),
+    () => sb.from('profiles').delete().like('id', '00000000-0000-4000-8000-1234%'),
+    () => sb.from('blog_posts').delete().like('slug', 'demo-w2-%'),
+  ];
+  for (const wipe of phaseVWipes) {
+    const r = await wipe();
+    if (r.error && !/does not exist|schema cache|relation/i.test(r.error.message)) {
+      console.log(`  ⚠ wipe warning: ${r.error.message}`);
+    }
+  }
+  console.log('  ✓ Phase V wipe pass complete');
+
+  console.log('\n[4/4] Re-seeding demo data…');
   runScript('seed-demo.mjs');
 
   console.log('\n✅ Demo state ready. Quick links:');
@@ -288,6 +308,15 @@ function runScript(scriptName) {
   console.log(`  Settings:         ${APP_URL}/ar/dashboard/settings/profile`);
   console.log(`  AI bias card:     ${APP_URL}/ar/legal/ai-models`);
   console.log(`  Data rights:      ${APP_URL}/ar/legal/data-rights`);
+  console.log('');
+  console.log('  Phase V surfaces (W2 seeded):');
+  console.log(`  Notifications:    ${APP_URL}/ar/dashboard/notifications`);
+  console.log(`  Notif prefs:      ${APP_URL}/ar/dashboard/notifications/preferences`);
+  console.log(`  Supplier KPI:     ${APP_URL}/ar/supplier/dashboard       (login as m.supplier.test)`);
+  console.log(`  Admin leads:      ${APP_URL}/admin/leads                  (login as sara.admin.test)`);
+  console.log(`  Admin analytics:  ${APP_URL}/admin/analytics`);
+  console.log(`  Admin blog:       ${APP_URL}/admin/blog`);
+  console.log(`  Public blog:      ${APP_URL}/ar/blog`);
   console.log(
     '\n  Specific RFQ + invoice URLs are printed by seed-demo above.',
   );
