@@ -6,6 +6,7 @@ import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { HeaderBar } from '@/components/header/header-bar';
 
 const SUPPLIER_NAV: { href: string; label: string }[] = [
+  { href: '/supplier/dashboard', label: 'لوحة الأداء' },
   { href: '/supplier/rfqs', label: 'الطلبات المتاحة' },
   { href: '/supplier/proposals', label: 'عروضي' },
   { href: '/supplier/projects', label: 'مشاريعي' },

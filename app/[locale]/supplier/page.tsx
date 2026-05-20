@@ -18,7 +18,9 @@ export default async function SupplierHomePage({
   const supplier = supplierRaw as { status: string } | null;
 
   if (supplier?.status === 'approved') {
-    redirect({ href: '/supplier/rfqs', locale: locale as 'ar' | 'en' });
+    // V6.1 — approved suppliers land on the KPI dashboard instead of
+    // the raw RFQs list. The dashboard exposes quick-actions back to RFQs.
+    redirect({ href: '/supplier/dashboard', locale: locale as 'ar' | 'en' });
   }
   redirect({ href: '/supplier/pending', locale: locale as 'ar' | 'en' });
 }
