@@ -42,8 +42,13 @@ export function CategoryPieChart({ data }: Props) {
   }
 
   return (
-    <div className="h-64 w-full" data-component="category-pie-chart">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-64 w-full min-w-[220px]" data-component="category-pie-chart">
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minWidth={220}
+        minHeight={220}
+      >
         <PieChart>
           <Pie
             data={pieData}
@@ -54,6 +59,7 @@ export function CategoryPieChart({ data }: Props) {
             dataKey="value"
             stroke="#fff"
             strokeWidth={2}
+            isAnimationActive={false}
           >
             {pieData.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
