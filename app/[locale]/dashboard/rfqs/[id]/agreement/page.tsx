@@ -19,7 +19,14 @@ interface AgreementRow {
   ai_agreed_points: unknown;
   ai_disputed_points: unknown;
   ai_missing_points: unknown;
+  ai_risky_clauses: unknown;
   status: string;
+}
+
+interface RiskyClause {
+  clause: string;
+  deviation: string;
+  severity: 'high' | 'medium' | 'low';
 }
 
 export default async function ClientAgreementPage({
@@ -34,7 +41,7 @@ export default async function ClientAgreementPage({
   const { data: rowRaw } = await supabase
     .from('agreements')
     .select(
-      'id, rfq_id, client_id, client_understanding, supplier_understanding, client_submitted_at, supplier_submitted_at, client_approved_at, supplier_approved_at, ai_recommendation, ai_agreed_points, ai_disputed_points, ai_missing_points, status'
+      'id, rfq_id, client_id, client_understanding, supplier_understanding, client_submitted_at, supplier_submitted_at, client_approved_at, supplier_approved_at, ai_recommendation, ai_agreed_points, ai_disputed_points, ai_missing_points, ai_risky_clauses, status'
     )
     .eq('rfq_id', rfqId)
     .single();
@@ -87,6 +94,7 @@ export default async function ClientAgreementPage({
           <Bucket title="نقاط الاتفاق" items={ag.ai_agreed_points as string[] | null} variant="success" />
           <Bucket title="نقاط الاختلاف" items={ag.ai_disputed_points as Array<Record<string, string>> | null} variant="warning" />
           <Bucket title="نقاط ناقصة" items={ag.ai_missing_points as Array<Record<string, string>> | null} variant="info" />
+          <RiskyClauses clauses={ag.ai_risky_clauses as RiskyClause[] | null} />
         </section>
       ) : null}
 
@@ -111,6 +119,51 @@ export default async function ClientAgreementPage({
           ) : null}
         </section>
       ) : null}
+    </div>
+  );
+}
+
+// V1.2 — Saudi commercial-law deviations flagged by AI. Severity drives
+// the chip color: high = error red, medium = warning amber, low = info blue.
+function RiskyClauses({ clauses }: { clauses: RiskyClause[] | null }) {
+  if (!clauses || clauses.length === 0) return null;
+  const severityTone: Record<RiskyClause['severity'], string> = {
+    high: 'bg-[var(--color-error-50,#FEF2F2)] text-[var(--color-error,#B91C1C)] border-[var(--color-error,#B91C1C)]',
+    medium: 'bg-[var(--color-warning-50,#FFFBEB)] text-[var(--color-warning,#B45309)] border-[var(--color-warning,#B45309)]',
+    low: 'bg-[var(--color-info-50,#EFF6FF)] text-[var(--color-info,#1D4ED8)] border-[var(--color-info,#1D4ED8)]',
+  };
+  const severityLabel: Record<RiskyClause['severity'], string> = {
+    high: 'مخاطرة عالية',
+    medium: 'مخاطرة متوسطة',
+    low: 'مخاطرة منخفضة',
+  };
+  return (
+    <div
+      className="mt-5 rounded-xl border border-dashed border-[var(--color-stone-300)] bg-white p-4"
+      data-component="risky-clauses"
+    >
+      <h3 className="text-sm font-semibold text-[var(--color-midnight-green)]">
+        بنود قد تنحرف عن السوق السعودي
+      </h3>
+      <p className="mt-1 text-xs text-[var(--color-stone-600)]">
+        مقارنة بالمعتاد التجاري السعودي — راجع كل بند مع طرفك قبل التوقيع.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {clauses.map((c, i) => (
+          <li
+            key={i}
+            className={`rounded-lg border px-3 py-2 ${severityTone[c.severity]}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold">{c.clause}</p>
+              <span className="shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium">
+                {severityLabel[c.severity]}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed">{c.deviation}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

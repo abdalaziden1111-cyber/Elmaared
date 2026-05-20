@@ -4,9 +4,11 @@ import {
   ANALYZE_AGREEMENT_SYSTEM,
   buildScoreProposalPrompt,
   buildAnalyzeAgreementPrompt,
+  buildAnalyzeAgreementSystem,
   buildProposalSummaryLine,
   type ScoreProposalPromptInput,
 } from '@/lib/ai/prompts';
+import { buildLegalContext } from '@/lib/ai/legal-templates';
 
 const sampleScoreInput: ScoreProposalPromptInput = {
   rfq: {
@@ -148,6 +150,34 @@ describe('buildAnalyzeAgreementPrompt', () => {
     };
     expect(buildAnalyzeAgreementPrompt(args)).toBe(
       buildAnalyzeAgreementPrompt(args)
+    );
+  });
+});
+
+describe('buildAnalyzeAgreementSystem (V1.2 — with legal context)', () => {
+  it('starts with the base system prompt', () => {
+    const out = buildAnalyzeAgreementSystem(buildLegalContext());
+    expect(out.indexOf(ANALYZE_AGREEMENT_SYSTEM)).toBe(0);
+  });
+
+  it('asks the model to emit risky_clauses', () => {
+    const out = buildAnalyzeAgreementSystem(buildLegalContext());
+    expect(out).toContain('risky_clauses');
+    expect(out).toContain('clause');
+    expect(out).toContain('deviation');
+    expect(out).toContain('severity');
+  });
+
+  it('embeds the full legal context', () => {
+    const legal = buildLegalContext();
+    const out = buildAnalyzeAgreementSystem(legal);
+    expect(out).toContain(legal);
+  });
+
+  it('is deterministic for cache reuse', () => {
+    const legal = 'CONST_CONTEXT';
+    expect(buildAnalyzeAgreementSystem(legal)).toBe(
+      buildAnalyzeAgreementSystem(legal)
     );
   });
 });
