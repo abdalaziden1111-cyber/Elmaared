@@ -303,6 +303,12 @@ function runScript(scriptName) {
   console.log('\n[4/4] Re-seeding demo data…');
   runScript('seed-demo.mjs');
 
+  // B-001 — seed-blog idempotently upserts the 5 migrated articles. Without
+  // this step a first-time tester sees only the 1 W2.8 demo published post
+  // on /ar/blog and concludes the blog list is broken.
+  console.log('\n[4b/4] Seeding migrated blog articles (B-001)…');
+  runScript('seed-blog.mjs');
+
   console.log('\n✅ Demo state ready. Quick links:');
   console.log(`  Login as client:  ${APP_URL}/ar/login`);
   console.log(`  → ahmed.client.test@example.com  /  TestClient2026!`);
