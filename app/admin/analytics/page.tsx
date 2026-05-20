@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { formatCurrency } from '@/lib/utils/format';
+import { normalizeCityName } from '@/lib/utils/normalize-city';
 import {
   fetchFunnel,
   fetchDailyActiveUsers,
@@ -51,7 +52,12 @@ export default async function AdminAnalyticsPage() {
         const counts = new Map<string, number>();
         for (const row of (data ?? []) as Array<{ exhibition_city: string | null }>) {
           if (!row.exhibition_city) continue;
-          counts.set(row.exhibition_city, (counts.get(row.exhibition_city) ?? 0) + 1);
+          // B-012 — normalise so "الرياض" + "Riyadh" + "riyadh" don't
+          // bucket as 3 separate rows. Falls back to the raw string for
+          // unrecognised cities (e.g. a user-typed Jubail) so we don't
+          // silently drop data.
+          const key = normalizeCityName(row.exhibition_city);
+          counts.set(key, (counts.get(key) ?? 0) + 1);
         }
         return Array.from(counts.entries())
           .sort((a, b) => b[1] - a[1])
