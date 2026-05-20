@@ -10,6 +10,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const envText = readFileSync(new URL('../.env.local', import.meta.url), 'utf8');
 const env = Object.fromEntries(
@@ -327,11 +328,15 @@ async function deleteAllForClient(clientId) {
   const extras = [];
   for (const s of EXTRA_SUPPLIERS) {
     const r = await ensureSupplier(s);
-    extras.push({ ...s, supplierId: r.id });
+    extras.push({ ...s, supplierId: r.id, ownerId: r.ownerId });
   }
 
   const allSuppliers = [
-    { supplierId: baseSupplierId, company_name: 'شركة الإبداع للمعارض والتجهيز' },
+    {
+      supplierId: baseSupplierId,
+      ownerId: baseSupplierOwnerId, // Phase W2.5 needs this for lead_scores
+      company_name: 'شركة الإبداع للمعارض والتجهيز',
+    },
     ...extras,
   ];
 
@@ -525,13 +530,599 @@ async function deleteAllForClient(clientId) {
     .single();
   console.log(`  ✓ invoice ${invRow.id}`);
 
-  // 7. user_milestones — CelebrationModal uses ROW-PRESENCE to mean
-  // "already celebrated". So to make the modal fire on the demo, we need
-  // to ensure NO row exists for ahmed's `first_rfq` (the dashboard will
-  // detect that he has ≥1 RFQ but no row → triggers). deleteAllForClient
-  // already wiped this; explicit no-op log for clarity.
-  console.log('\n[5/5] Milestone state for celebration:');
-  console.log(`  ✓ user_milestones cleared for ahmed (CelebrationModal will fire on first dashboard load)`);
+  // 7. user_milestones — see Phase W2.1 below; we now seed historical
+  // milestones with one unclaimed (500k_gmv) so the CelebrationModal
+  // demonstrates the journey instead of firing only the first one.
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Phase W2 — Phase V demo data
+  //
+  // Every section below seeds rows for a Phase V surface. All Phase V
+  // tables are wiped first for idempotency. AI-derived rows are tagged
+  // model='mock-seed' so the admin dashboards can visibly mark them.
+  // ═══════════════════════════════════════════════════════════════════
+
+  console.log('\n=== Phase W2 — Phase V demo data ===');
+
+  // Resolve admin (sara) email for W2.7.
+  const adminEmail = 'sara.admin.test@example.com';
+  const adminId = await findAuthUserId(adminEmail);
+  if (!adminId) {
+    console.warn(`  ⚠ ${adminEmail} not found — skipping admin preferences row.`);
+  }
+
+  // ── W2 wipes — all idempotent ──
+  await sb.from('ai_usage_log').delete().eq('model', 'mock-seed');
+  await sb.from('ai_score_cache').delete().like('hash', 'mock-seed-%');
+  await sb.from('lead_scores').delete().like('narrative', '[mock]%');
+  // Wipe synthetic 'lead-' profiles (we'll re-insert with stable IDs below).
+  await sb.from('profiles').delete().like('id', '00000000-0000-4000-8000-1234%');
+  await sb
+    .from('notification_preferences')
+    .delete()
+    .in('user_id', [clientId, baseSupplierOwnerId, adminId].filter(Boolean));
+  await sb.from('blog_posts').delete().like('slug', 'demo-w2-%');
+
+  // ── W2.1 Milestones history ──
+  // 6 personal firsts spread across past 60 days + 100k_gmv claimed
+  // 7 days ago. 500k_gmv left UNCLAIMED → CelebrationModal will fire
+  // on next dashboard visit. 1m_gmv + yearly_anniversary deliberately
+  // absent (locked).
+  const dayMs = 86400_000;
+  const milestoneSeed = [
+    { type: 'first_rfq', days: 58 },
+    { type: 'first_proposal_received', days: 55 },
+    { type: 'first_chat_opened', days: 50 },
+    { type: 'first_agreement_signed', days: 30 },
+    { type: 'first_escrow_funded', days: 28 },
+    { type: 'first_project_completed', days: 10 },
+    { type: '100k_gmv', days: 7 },
+    // 500k_gmv NOT inserted — modal fires for it
+    // 1m_gmv NOT inserted — locked
+  ];
+  for (const m of milestoneSeed) {
+    const { error } = await sb.from('user_milestones').insert({
+      user_id: clientId,
+      milestone_type: m.type,
+      achieved_at: new Date(Date.now() - m.days * dayMs).toISOString(),
+    });
+    if (error && !/duplicate/i.test(error.message)) {
+      throw new Error(`milestone ${m.type}: ${error.message}`);
+    }
+  }
+  console.log(
+    `  ✓ W2.1: 7 milestones seeded for ahmed (500k_gmv unclaimed → modal fires)`
+  );
+
+  // ── W2.2 AI usage log (50 rows) ──
+  // Realistic Sonnet shape; 30% cache hits (cost_usd=0). Spread across
+  // past 30 days. user_id rotates across demo suppliers + ahmed.
+  function computeMockCost(tokensIn, tokensOut) {
+    // Sonnet 4.6 rates: $3/MTok in, $15/MTok out (matches lib/ai/cost.ts).
+    return (tokensIn / 1_000_000) * 3 + (tokensOut / 1_000_000) * 15;
+  }
+  const usageUsers = [clientId, ...allSuppliers.map((s) => s.ownerId).filter(Boolean)];
+  const usageRows = [];
+  for (let i = 0; i < 50; i++) {
+    const isCacheHit = i % 3 === 0; // ~33%
+    const opIdx = i % 5;
+    const operation =
+      opIdx < 3 ? 'score_proposal' : opIdx === 3 ? 'analyze_agreement' : 'score_lead';
+    const tokensIn = isCacheHit ? 0 : 800 + ((i * 137) % 3700);
+    const tokensOut = isCacheHit ? 0 : 200 + ((i * 71) % 1000);
+    const userId = usageUsers[i % usageUsers.length] ?? null;
+    usageRows.push({
+      user_id: userId,
+      operation,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      cost_usd: isCacheHit ? 0 : computeMockCost(tokensIn, tokensOut),
+      model: 'mock-seed',
+      cache_hit: isCacheHit,
+      request_id: `mock-${i.toString().padStart(3, '0')}`,
+      created_at: new Date(Date.now() - (30 - i % 30) * dayMs).toISOString(),
+    });
+  }
+  const usageBatchSize = 50;
+  for (let b = 0; b < usageRows.length; b += usageBatchSize) {
+    const { error } = await sb
+      .from('ai_usage_log')
+      .insert(usageRows.slice(b, b + usageBatchSize));
+    if (error) throw new Error(`ai_usage_log batch ${b}: ${error.message}`);
+  }
+  console.log(`  ✓ W2.2: 50 ai_usage_log rows (model='mock-seed', ~33% cache hits)`);
+
+  // ── W2.3 AI score cache (10 entries) ──
+  // Mock-seeded with deterministic hashes (mock-seed-N). The runtime
+  // hashKey() won't produce these prefixes, so real scoring still misses
+  // these. Demonstrates the table is populated for admin diagnostics.
+  const cacheTtlDays = 30;
+  const cacheRows = [];
+  for (let i = 0; i < 10; i++) {
+    cacheRows.push({
+      hash: `mock-seed-${i.toString().padStart(4, '0')}-${createHash('sha256')
+        .update(`mock-seed-${i}`)
+        .digest('hex')
+        .slice(0, 56)}`,
+      operation: i % 2 === 0 ? 'score_proposal' : 'analyze_agreement',
+      payload: {
+        score: 65 + i * 3,
+        summary: `[mock] ملخص الذكاء الاصطناعي رقم ${i + 1} — قيمة جيّدة مقارنة بالسوق.`,
+        strengths: ['تسعير تنافسي', 'سجل عمل واضح'],
+        concerns: i % 3 === 0 ? ['شروط الدفع تحتاج توضيح'] : [],
+        breakdown: { price: 80, delivery: 75, completeness: 70, professionalism: 80, trackRecord: 70 },
+      },
+      model: 'mock-seed',
+      expires_at: new Date(Date.now() + cacheTtlDays * dayMs).toISOString(),
+    });
+  }
+  const { error: cacheErr } = await sb.from('ai_score_cache').insert(cacheRows);
+  if (cacheErr) throw new Error(`ai_score_cache: ${cacheErr.message}`);
+  console.log(`  ✓ W2.3: 10 ai_score_cache entries (hash prefix 'mock-seed-')`);
+
+  // ── W2.4 Agreement risky clauses ──
+  // Update the in-escrow agreement created above with 3 mock risky
+  // clauses. Renders <RiskyClauses> panel immediately + the W4.3 badge
+  // above the AI section.
+  const riskyClauses = [
+    {
+      clause: 'غرامة تأخير الدفع 5% أسبوعياً',
+      deviation:
+        'أعلى بكثير من المعتاد (1-2% شهرياً) — راجع مع مستشار قانوني قبل التوقيع.',
+      severity: 'high',
+    },
+    {
+      clause: 'نطاق القوة القاهرة يشمل أي عذر تشغيلي',
+      deviation:
+        'النموذج السعودي يقصرها على الأحوال الجوية + التعطيلات الحكومية فقط.',
+      severity: 'medium',
+    },
+    {
+      clause: 'اختصاص محاكم دبي للنزاعات',
+      deviation:
+        'الأصل في السوق السعودي محاكم تجارية محلية + بوابة ناجز كقناة أولى.',
+      severity: 'low',
+    },
+  ];
+  await sb
+    .from('agreements')
+    .update({
+      ai_risky_clauses: riskyClauses,
+      ai_recommendation:
+        '[mock] راجع البنود المُعلَّمة قبل التوقيع — الغرامة الأسبوعية بحاجة تخفيف، والاختصاص القضائي يفضّل تعديله للسعودية.',
+    })
+    .eq('id', agree.id);
+  console.log(`  ✓ W2.4: 3 risky_clauses seeded on agreement ${agree.id}`);
+
+  // ── W2.5 Lead scores (20 leads) ──
+  // 15 synthetic profile rows (no auth.users) + ahmed + 4 demo suppliers = 20.
+  // Synthetic IDs use a fixed pattern (00000000-0000-4000-8000-1234XXXX)
+  // so wipe-on-rerun is deterministic.
+  const syntheticProfiles = [];
+  for (let i = 0; i < 15; i++) {
+    const id = `00000000-0000-4000-8000-1234${i.toString().padStart(4, '0')}`;
+    const fullName = `لقاء تجريبي رقم ${i + 1}`;
+    const { error } = await sb.from('profiles').insert({
+      id,
+      role: i % 2 === 0 ? 'client' : 'supplier',
+      full_name: fullName,
+      preferred_language: 'ar',
+    });
+    if (error && !/duplicate|already exists/i.test(error.message)) {
+      throw new Error(`synthetic profile ${i}: ${error.message}`);
+    }
+    syntheticProfiles.push({ id, role: i % 2 === 0 ? 'client' : 'supplier' });
+  }
+  // Build 20-lead list: 3 hot, 8 warm, 9 cold.
+  const allLeadUsers = [
+    { id: clientId, role: 'client' },
+    ...allSuppliers.slice(0, 4).map((s) => ({ id: s.ownerId, role: 'supplier' })),
+    ...syntheticProfiles,
+  ];
+  // Build category assignment per spec: 3 hot, 8 warm, 9 cold.
+  const leadCategorySchedule = [
+    ...Array(3).fill('hot'),
+    ...Array(8).fill('warm'),
+    ...Array(9).fill('cold'),
+  ];
+  const leadRows = [];
+  for (let i = 0; i < 20; i++) {
+    const u = allLeadUsers[i];
+    const category = leadCategorySchedule[i];
+    const score =
+      category === 'hot' ? 70 + ((i * 7) % 26) :
+      category === 'warm' ? 40 + ((i * 5) % 30) :
+      ((i * 3) % 40);
+    // 5 leads have a previous_category different from current (transition arrow)
+    const previous_category =
+      i < 5 ? (category === 'hot' ? 'warm' : category === 'warm' ? 'cold' : null) : null;
+    // First hot lead: cold→hot transition, no recent alert yet (demo trigger).
+    const last_hot_alerted_at = i === 0 ? null : (category === 'hot' ? new Date(Date.now() - 14 * dayMs).toISOString() : null);
+    const previousForTransition = i === 0 ? 'cold' : previous_category;
+    leadRows.push({
+      user_id: u.id,
+      category,
+      score,
+      signals: {
+        role: u.role,
+        daysSinceSignup: 30 + ((i * 11) % 120),
+        daysSinceLastActivity: category === 'hot' ? 1 + (i % 7) : category === 'warm' ? 8 + (i % 14) : 45 + (i % 60),
+        rfqCount: u.role === 'client' ? (category === 'hot' ? 5 : category === 'warm' ? 2 : 0) : 0,
+        proposalsSubmitted: u.role === 'supplier' ? (category === 'hot' ? 12 : category === 'warm' ? 4 : 0) : 0,
+        projectsCompleted: category === 'hot' ? 2 : 0,
+        totalGmvSar: category === 'hot' ? 180_000 + i * 5000 : 0,
+      },
+      narrative:
+        category === 'hot'
+          ? `[mock] ${u.role === 'client' ? 'عميل' : 'مورد'} نشط — يفتح RFQs أسبوعياً ولديه عقد مكتمل. أولوية اتصال.`
+          : category === 'warm'
+          ? `[mock] ${u.role === 'client' ? 'عميل' : 'مورد'} مهتم لكن لم يحوّل بعد. تابع خلال أسبوع.`
+          : null, // cold = no narrative yet (admin can recompute)
+      previous_category: previousForTransition,
+      last_computed_at: new Date(Date.now() - (i % 3) * dayMs).toISOString(),
+      last_hot_alerted_at,
+    });
+  }
+  for (const row of leadRows) {
+    const { error } = await sb
+      .from('lead_scores')
+      .upsert(row, { onConflict: 'user_id' });
+    if (error) throw new Error(`lead_scores ${row.user_id}: ${error.message}`);
+  }
+  console.log(
+    `  ✓ W2.5: 20 lead_scores (3 hot 🔥 / 8 warm 🟡 / 9 cold ❄), 15 synthetic profiles, 1 cold→hot transition awaiting alert`
+  );
+
+  // ── W2.6 Notifications variety (30 rows for ahmed) ──
+  // Spread across 7 days, ~30% unread. Categories from V4.1
+  // mapping: rfq / proposal / chat / payment / system.
+  const notifBase = [
+    // RFQ × 5
+    { type: 'rfq_match', title: 'طلب جديد يطابق تخصصك', body: 'تم نشر RFQ-DEMO-1023 — تصميم جناح Q1.', daysAgo: 0 },
+    { type: 'rfq_new', title: 'تذكير: تحديث RFQ-DEMO-0987', body: 'الموعد النهائي خلال 3 أيام.', daysAgo: 1 },
+    { type: 'rfq_match', title: 'طلب جديد يطابق تخصصك', body: 'فعالية إطلاق منتج — الرياض.', daysAgo: 2 },
+    { type: 'rfq_match', title: 'طلب جديد يطابق تخصصك', body: 'هدايا تذكارية — جدة.', daysAgo: 3 },
+    { type: 'rfq_new', title: 'RFQ-DEMO-1001 منشور', body: 'طلبك مرئي الآن للموردين المعتمدين.', daysAgo: 5 },
+    // Proposal × 5
+    { type: 'proposal_received', title: 'عرض جديد على طلبك', body: 'تركي القحطاني قدّم عرضاً.', daysAgo: 0 },
+    { type: 'proposal_received', title: 'عرض جديد على طلبك', body: 'رهف الحضرمي قدّمت عرضاً.', daysAgo: 1 },
+    { type: 'proposal_shortlisted', title: 'تمّ ترشيح عرضك', body: 'العميل ترشّح عرضك على RFQ-DEMO-OPEN.', daysAgo: 2 },
+    { type: 'proposal_accepted', title: 'مبروك! عرضك مقبول', body: 'العميل اختار عرضك على RFQ-DEMO-ESC.', daysAgo: 4 },
+    { type: 'proposal_rejected', title: 'تم رفض عرضك', body: 'العميل اختار مورداً آخر على RFQ-DEMO-0987.', daysAgo: 6 },
+    // Chat × 4
+    { type: 'message', title: 'رسالة من تركي القحطاني', body: 'السلام عليكم، أحتاج توضيح حول مساحة الجناح.', daysAgo: 0 },
+    { type: 'message', title: 'رسالة من رهف الحضرمي', body: 'تم تجهيز التصاميم المبدئية.', daysAgo: 1 },
+    { type: 'message', title: 'رسالة من فهد الدوسري', body: 'متى يبدأ التنفيذ؟', daysAgo: 3 },
+    { type: 'panic_button', title: '🚨 تصعيد', body: 'العميل صعّد محادثة RFQ-DEMO-0975.', daysAgo: 4 },
+    // Payment × 4
+    { type: 'escrow_deposit_required', title: 'مطلوب إيداع مبدئي', body: 'حوّل 24,000 ﷼ لبدء التنفيذ.', daysAgo: 0 },
+    { type: 'escrow_received', title: 'تأكدنا استلام الإيداع', body: 'يمكنك بدء العمل على RFQ-DEMO-ESC.', daysAgo: 1 },
+    { type: 'work_started', title: 'بدأ العمل على مشروعك', body: 'المورد بدأ التنفيذ.', daysAgo: 2 },
+    { type: 'delivery_approved', title: 'تمّ اعتماد التسليم', body: 'الدفعة النهائية ستُحرّر بعد المراجعة.', daysAgo: 5 },
+    // Agreement × 3
+    { type: 'agreement_pending', title: 'الاتفاق ينتظر فهمك', body: 'اكتب فهمك لمشروع RFQ-DEMO-ESC.', daysAgo: 0 },
+    { type: 'agreement_pending', title: 'الاتفاق ينتظر فهمك', body: 'فهم المورد جاهز للمراجعة.', daysAgo: 2 },
+    { type: 'agreement_pending', title: 'الاتفاق ينتظر توقيعك', body: 'كلا الطرفين قدّم فهمه.', daysAgo: 4 },
+    // System / dispute / review × 6 (review uses 'system' since enum doesn't have a review type)
+    { type: 'panic_button', title: '🚨 تصعيد جديد', body: 'محادثة RFQ-DEMO-1023 صعّدها العميل.', daysAgo: 1 },
+    { type: 'panic_button', title: '🚨 نزاع مفتوح', body: 'دخل Admin كطرف ثالث.', daysAgo: 3 },
+    { type: 'system', title: 'تقييم جديد وصلك', body: 'العميل قيّمك بـ ٥ نجوم.', daysAgo: 0 },
+    { type: 'system', title: 'تقييم جديد وصلك', body: 'العميل قيّمك بـ ٤ نجوم.', daysAgo: 2 },
+    { type: 'system', title: 'صيانة ليلة الجمعة', body: 'المنصة ستكون في وضع الصيانة من ١-٣ صباحاً.', daysAgo: 1 },
+    { type: 'system', title: 'تحديث سياسة الخصوصية', body: 'راجع التغييرات الجديدة في مركز حقوق البيانات.', daysAgo: 4 },
+    { type: 'system', title: 'ميزة جديدة: لوحة الأداء', body: 'الموردون: راجعوا KPIs والإيرادات في صفحة واحدة.', daysAgo: 6 },
+    // 2 extra to reach 30
+    { type: 'proposal_received', title: 'عرض جديد على طلبك', body: 'فهد الدوسري قدّم عرضاً على RFQ-DEMO-1001.', daysAgo: 0 },
+    { type: 'system', title: 'تذكير: PDPL', body: 'راجع تفضيلات الخصوصية إذا لزم.', daysAgo: 5 },
+  ];
+  const notifRows = notifBase.map((n, idx) => ({
+    user_id: clientId,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    link: `${APP_URL}/ar/dashboard/notifications`,
+    read_at: idx < 9 ? null : new Date(Date.now() - (n.daysAgo * dayMs + 3600_000)).toISOString(),
+    created_at: new Date(Date.now() - n.daysAgo * dayMs).toISOString(),
+  }));
+  const { error: notifErr } = await sb.from('notifications').insert(notifRows);
+  if (notifErr) throw new Error(`notifications: ${notifErr.message}`);
+  console.log(`  ✓ W2.6: 30 notifications for ahmed (9 unread, 8-category spread)`);
+
+  // ── W2.7 Notification preferences ──
+  const prefsRows = [
+    {
+      user_id: clientId,
+      email_disabled_types: [],
+      in_app_disabled_types: [],
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      digest_frequency: 'off',
+      sound_enabled: true,
+    },
+    {
+      user_id: baseSupplierOwnerId,
+      email_disabled_types: [],
+      in_app_disabled_types: [],
+      quiet_hours_start: '22:00',
+      quiet_hours_end: '08:00',
+      digest_frequency: 'off',
+      sound_enabled: true,
+    },
+  ];
+  if (adminId) {
+    prefsRows.push({
+      user_id: adminId,
+      email_disabled_types: ['message'],
+      in_app_disabled_types: [],
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      digest_frequency: 'daily',
+      sound_enabled: false,
+    });
+  }
+  for (const row of prefsRows) {
+    const { error } = await sb
+      .from('notification_preferences')
+      .upsert(row, { onConflict: 'user_id' });
+    if (error) throw new Error(`notification_preferences ${row.user_id}: ${error.message}`);
+  }
+  console.log(`  ✓ W2.7: ${prefsRows.length} notification_preferences rows`);
+
+  // ── W2.8 Blog posts (3 new) ──
+  const blogRows = [
+    {
+      slug: 'demo-w2-published',
+      title_ar: 'كيف نقيس نجاح المعرض بالأرقام',
+      title_en: 'How we measure exhibition success by the numbers',
+      excerpt_ar: 'دليل عملي للمعارض السعودية على KPIs الحقيقية.',
+      excerpt_en: 'Practical guide for Saudi exhibitions on real KPIs.',
+      content_ar:
+        '<h2>المقدمة</h2><p>قياس نجاح المعرض يبدأ من قبل أن تبدأ الفعالية.</p><p>في هذا المقال نستعرض ٧ مؤشرات أداء (KPIs) عملية.</p>',
+      content_en:
+        '<h2>Introduction</h2><p>Measuring exhibition success starts before the event begins.</p>',
+      cover_image:
+        'https://placehold.co/1200x630/0E3B43/FAF8F4.png?text=Elmaared+Blog',
+      status: 'published',
+      published_at: new Date(Date.now() - 3 * dayMs).toISOString(),
+      tags: ['kpi', 'measurement', 'how-to'],
+      seo_title_ar: 'قياس KPI المعرض — دليل ٢٠٢٦',
+      seo_description_ar: '٧ مؤشرات يجب على كل منظم معرض في السعودية متابعتها.',
+      reading_time_minutes: 7,
+    },
+    {
+      slug: 'demo-w2-scheduled',
+      title_ar: 'تجهيز LEAP 2027 — ٨ أسابيع من الآن',
+      title_en: null,
+      excerpt_ar: 'خطة عمل أسبوعية للمشاركة الناجحة.',
+      excerpt_en: null,
+      content_ar:
+        '<p>LEAP يبدأ في فبراير. هذه خطة الأسابيع الثمانية القادمة.</p>',
+      content_en: null,
+      cover_image: null,
+      status: 'scheduled',
+      published_at: new Date(Date.now() + 1 * dayMs).toISOString(),
+      tags: ['leap', 'planning'],
+      reading_time_minutes: 5,
+    },
+    {
+      slug: 'demo-w2-draft',
+      title_ar: 'مسوّدة: ميزات Phase V الجديدة',
+      title_en: null,
+      excerpt_ar: null,
+      excerpt_en: null,
+      content_ar:
+        '<p>مسوّدة قيد العمل — لن تظهر في المدوّنة العامة.</p>',
+      content_en: null,
+      cover_image: null,
+      status: 'draft',
+      published_at: null,
+      tags: ['internal'],
+      reading_time_minutes: 2,
+    },
+  ];
+  for (const row of blogRows) {
+    const { error } = await sb
+      .from('blog_posts')
+      .upsert(row, { onConflict: 'slug' });
+    if (error) throw new Error(`blog_posts ${row.slug}: ${error.message}`);
+  }
+  console.log(`  ✓ W2.8: 3 blog posts (1 published, 1 scheduled, 1 draft)`);
+
+  // ── W2.9 Supplier KPI history (m.supplier.test) ──
+  // 30 proposals + 8 completed projects + 25 reviews over past 12 months.
+  // The seed re-creates Ahmed's data on each run but ADDS to m.supplier's
+  // KPI history (we wipe only Phase V demo rows tagged with the marker).
+  // For simplicity: identify W2.9-seeded rows by description prefix
+  // '[w2.9-mock]' so re-runs cleanly replace them.
+  console.log('\n[W2.9] Seeding supplier KPI history for m.supplier.test:');
+
+  // Wipe prior W2.9 rows.
+  const { data: priorProps } = await sb
+    .from('proposals')
+    .select('id')
+    .eq('supplier_id', baseSupplierId)
+    .like('description', '[w2.9-mock]%');
+  const priorPropIds = (priorProps ?? []).map((p) => p.id);
+  if (priorPropIds.length > 0) {
+    // Cascade: agreements → escrow_transactions → escrow_events / reviews.
+    const { data: priorAgs } = await sb
+      .from('agreements')
+      .select('id')
+      .in('proposal_id', priorPropIds);
+    const priorAgIds = (priorAgs ?? []).map((a) => a.id);
+    if (priorAgIds.length > 0) {
+      const { data: priorEsc } = await sb
+        .from('escrow_transactions')
+        .select('id')
+        .in('agreement_id', priorAgIds);
+      const priorEscIds = (priorEsc ?? []).map((e) => e.id);
+      if (priorEscIds.length > 0) {
+        await sb.from('escrow_events').delete().in('escrow_id', priorEscIds);
+        await sb.from('escrow_transactions').delete().in('id', priorEscIds);
+      }
+      await sb.from('reviews').delete().in('agreement_id', priorAgIds);
+      await sb.from('agreements').delete().in('id', priorAgIds);
+    }
+    await sb.from('proposals').delete().in('id', priorPropIds);
+  }
+  // Wipe prior W2.9-seeded RFQs too (we created the supplier's RFQ
+  // history by inserting RFQs as the seeded synthetic clients).
+  await sb.from('rfqs').delete().like('rfq_number', 'RFQ-W29-%');
+
+  // 30 proposals across 12 months. Status distribution: 12 accepted /
+  // 10 rejected / 6 withdrawn / 2 submitted. Category mix: 12 booth /
+  // 8 event / 6 printing / 4 gifts.
+  const categoryCycle = ['booth', 'booth', 'booth', 'event', 'printing', 'gifts'];
+  const statusCycle = [
+    ...Array(12).fill('accepted'),
+    ...Array(10).fill('rejected'),
+    ...Array(6).fill('withdrawn'),
+    ...Array(2).fill('submitted'),
+  ];
+  // Use one synthetic client profile for KPI-history RFQs (re-uses
+  // synth profile #0 which is a client).
+  const kpiClientId = syntheticProfiles[0]?.id ?? clientId;
+  // KPI RFQs need a company_id (rfqs.company_id is NOT NULL). Reuse
+  // ahmed's company since admin client bypasses RLS.
+  const kpiCompanyId = companyId;
+  const acceptedCount = 12;
+  const w29ProposalIds = []; // track for agreement/escrow creation
+  for (let i = 0; i < 30; i++) {
+    const monthOffset = Math.floor(i / 3); // ~3 per month
+    const cat = categoryCycle[i % categoryCycle.length];
+    const status = statusCycle[i];
+    const createdAt = new Date(
+      Date.now() - monthOffset * 30 * dayMs - (i % 30) * dayMs
+    ).toISOString();
+    // Each proposal needs its own RFQ (rfqs.id NOT NULL on proposals).
+    const { data: rfq, error: rfqErr2 } = await sb
+      .from('rfqs')
+      .insert({
+        rfq_number: `RFQ-W29-${i.toString().padStart(3, '0')}`,
+        client_id: kpiClientId,
+        company_id: kpiCompanyId,
+        service_type: cat,
+        title: `[w2.9-mock] طلب ${cat} ${i + 1}`,
+        details: {},
+        budget_min: 30000,
+        budget_max: 250000,
+        status: 'completed',
+        created_at: createdAt,
+      })
+      .select('id')
+      .single();
+    if (rfqErr2) {
+      console.warn(`    ⚠ RFQ-W29-${i}: ${rfqErr2.message}`);
+      continue;
+    }
+    const { data: prop, error: propErr } = await sb
+      .from('proposals')
+      .insert({
+        rfq_id: rfq.id,
+        supplier_id: baseSupplierId,
+        total_price: 30000 + (i * 7000) % 220000,
+        delivery_days: 20 + (i % 30),
+        description: `[w2.9-mock] عرض ${i + 1} على طلب ${cat}.`,
+        status,
+        created_at: createdAt,
+      })
+      .select('id')
+      .single();
+    if (propErr) {
+      console.warn(`    ⚠ prop ${i}: ${propErr.message}`);
+      continue;
+    }
+    if (status === 'accepted') w29ProposalIds.push({ id: prop.id, rfqId: rfq.id, createdAt });
+  }
+  console.log(`    ✓ 30 RFQ+proposal pairs (${w29ProposalIds.length} accepted)`);
+
+  // 8 completed projects = first 8 accepted proposals + agreement + escrow.released
+  const completionTarget = Math.min(8, w29ProposalIds.length);
+  for (let i = 0; i < completionTarget; i++) {
+    const { id: propId, rfqId, createdAt } = w29ProposalIds[i];
+    // Need a client_id for the agreement — reuse kpiClientId.
+    const { data: agreementRow, error: agErr } = await sb
+      .from('agreements')
+      .insert({
+        rfq_id: rfqId,
+        proposal_id: propId,
+        client_id: kpiClientId,
+        supplier_id: baseSupplierId,
+        client_understanding: '[w2.9-mock] فهم العميل',
+        supplier_understanding: '[w2.9-mock] فهم المورد',
+        final_text: '[w2.9-mock] النص النهائي',
+        status: 'signed',
+        client_approved_at: createdAt,
+        supplier_approved_at: createdAt,
+      })
+      .select('id')
+      .single();
+    if (agErr) {
+      console.warn(`    ⚠ agreement ${i}: ${agErr.message}`);
+      continue;
+    }
+    // Realistic supplier_net 30k-250k.
+    const supplierNet = 30000 + (i * 27000) % 220000;
+    const releasedAt = new Date(
+      Date.now() - (12 - i) * 30 * dayMs + (i % 7) * dayMs
+    ).toISOString();
+    await sb.from('escrow_transactions').insert({
+      agreement_id: agreementRow.id,
+      rfq_id: rfqId,
+      total_amount: supplierNet + 2500,
+      initial_deposit: supplierNet / 2,
+      final_payment: supplierNet / 2,
+      client_fee: 1250,
+      supplier_fee: 1250,
+      platform_revenue: 2500,
+      supplier_net: supplierNet,
+      vat_rate_applied: 0.15,
+      client_fee_vat: 187.5,
+      supplier_fee_vat: 187.5,
+      total_vat: 375,
+      status: 'released',
+      initial_deposit_received_at: releasedAt,
+      released_at: releasedAt,
+    });
+  }
+  console.log(`    ✓ ${completionTarget} completed projects (released escrows)`);
+
+  // 25 reviews spread across past 12 months, averaging ~4.6 stars.
+  // Need an agreement_id per review — re-use the first 25 accepted/agreement IDs.
+  const { data: reviewableAgs } = await sb
+    .from('agreements')
+    .select('id, rfq_id, client_id')
+    .eq('supplier_id', baseSupplierId)
+    .like('client_understanding', '[w2.9-mock]%')
+    .limit(25);
+  const reviewableAgList = (reviewableAgs ?? []);
+  const ratingPool = [5, 5, 5, 5, 4, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 4, 4, 5, 5, 5, 4, 5, 5, 4, 5];
+  let reviewsInserted = 0;
+  for (let i = 0; i < Math.min(25, reviewableAgList.length); i++) {
+    const ag = reviewableAgList[i];
+    const rating = ratingPool[i];
+    const { error: revErr } = await sb.from('reviews').insert({
+      agreement_id: ag.id,
+      rfq_id: ag.rfq_id,
+      supplier_id: baseSupplierId,
+      client_id: ag.client_id,
+      rating_overall: rating,
+      rating_quality: rating,
+      rating_timeliness: Math.max(3, rating - 1),
+      rating_communication: rating,
+      rating_flexibility: rating,
+      rating_price_value: Math.max(3, rating - 1),
+      written_review: `[w2.9-mock] مراجعة ${i + 1} — ${rating === 5 ? 'ممتاز' : 'جيد جداً'}.`,
+      is_public: true,
+      created_at: new Date(Date.now() - i * 14 * dayMs).toISOString(),
+    });
+    if (!revErr) reviewsInserted++;
+  }
+  console.log(`    ✓ ${reviewsInserted} reviews seeded (avg ~4.6 stars)`);
+
+  console.log(
+    `\n  ✓ W2 complete: 9 sections seeded for Phase V activation.`
+  );
 
   // ─────────────────────────────────────────────
   // Summary + URLs
@@ -545,7 +1136,20 @@ async function deleteAllForClient(clientId) {
   console.log(`  Invoice + ZATCA:  ${APP_URL}/ar/dashboard/invoices/${invRow.id}`);
   console.log(`  Discover:         ${APP_URL}/ar/discover`);
   console.log(`  Settings:         ${APP_URL}/ar/dashboard/settings/profile`);
-  console.log(`\n  Login: ahmed.client.test@example.com / TestClient2026!`);
+  // Phase V surfaces
+  console.log('\n  Phase V (W2 seeded):');
+  console.log(`  Notifications:    ${APP_URL}/ar/dashboard/notifications`);
+  console.log(`  Notif prefs:      ${APP_URL}/ar/dashboard/notifications/preferences`);
+  console.log(`  Risky clauses:    ${APP_URL}/ar/dashboard/rfqs/${rfqEsc.id}/agreement`);
+  console.log(`  Supplier KPI:     ${APP_URL}/ar/supplier/dashboard       (login as m.supplier.test)`);
+  console.log(`  Admin leads:      ${APP_URL}/admin/leads                  (login as sara.admin.test)`);
+  console.log(`  Admin analytics:  ${APP_URL}/admin/analytics`);
+  console.log(`  Admin blog:       ${APP_URL}/admin/blog`);
+  console.log(`  Public blog:      ${APP_URL}/ar/blog`);
+  console.log(`\n  Logins:`);
+  console.log(`    ahmed.client.test@example.com / TestClient2026!`);
+  console.log(`    m.supplier.test@example.com  / TestSupplier2026!`);
+  console.log(`    sara.admin.test@example.com  / TestAdmin2026!`);
 })().catch((err) => {
   console.error('FAIL:', err.message);
   process.exit(1);
