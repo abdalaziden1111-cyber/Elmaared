@@ -109,6 +109,10 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock('next/server', () => ({
+  after: (fn: () => Promise<void> | void) => Promise.resolve().then(() => fn()),
+}));
+
 vi.mock('@/lib/notifications/build', () => ({
   buildNotification: vi.fn(() => ({
     title: 'tt',

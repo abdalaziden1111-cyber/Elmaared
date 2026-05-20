@@ -84,7 +84,18 @@ export interface FailureRecoveryTriggeredProps {
 }
 
 export interface MilestoneCelebratedProps {
-  milestone: 'first_rfq' | 'first_deal' | '100k_gmv' | 'yearly_anniversary';
+  milestone:
+    | 'first_rfq'
+    | 'first_proposal_received'
+    | 'first_chat_opened'
+    | 'first_agreement_signed'
+    | 'first_escrow_funded'
+    | 'first_project_completed'
+    | 'first_deal'
+    | '100k_gmv'
+    | '500k_gmv'
+    | '1m_gmv'
+    | 'yearly_anniversary';
   withConfetti: boolean;
 }
 

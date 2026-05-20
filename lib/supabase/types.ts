@@ -49,10 +49,19 @@ export type AiConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
 // UX Plan v2 Decision #01 — user pushback bucket (Sprint 1 S1.4).
 export type AiFeedbackReason = 'price_too_high' | 'price_too_low' | 'illogical';
 // UX Plan v2 Decision #07 + #13 — celebration milestone bucket (Sprint 3 S3.4).
+// Phase V2.1 expanded from 4 → 10. `first_deal` is legacy (Phase U seeded
+// rows still reference it); new code emits `first_agreement_signed`.
 export type MilestoneType =
   | 'first_rfq'
+  | 'first_proposal_received'
+  | 'first_chat_opened'
+  | 'first_agreement_signed'
+  | 'first_escrow_funded'
+  | 'first_project_completed'
   | 'first_deal'
   | '100k_gmv'
+  | '500k_gmv'
+  | '1m_gmv'
   | 'yearly_anniversary';
 type EscrowStatus =
   | 'awaiting_deposit'

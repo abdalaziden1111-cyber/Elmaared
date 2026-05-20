@@ -40,6 +40,28 @@ const COPY: Record<MilestoneType, { title: string; body: string }> = {
     title: 'مبروك أول طلب — انطلقتِ!',
     body: 'وصل طلبك للمزوّدين. سترين العروض خلال 24 ساعة. نحن معك خطوة بخطوة.',
   },
+  first_proposal_received: {
+    title: 'أول عرض وصلكِ ✉',
+    body: 'تم استلام أول عرض على طلبك. قارني الأسعار وافتحي محادثة مع من تختارينه.',
+  },
+  first_chat_opened: {
+    title: 'أول محادثة بدأت 💬',
+    body: 'فتحتِ أول محادثة مع مزوّد. تذكّري: Admin طرف ثالث صامت في كل شات لحمايتكم.',
+  },
+  first_agreement_signed: {
+    title: 'أول اتفاق موقّع ✍',
+    body: 'تمّ توقيع أول اتفاق لك. أمانة Elmaared™ جاهزة لحماية المبلغ حتى الاعتماد.',
+  },
+  first_escrow_funded: {
+    title: 'أول إيداع في الأمانة 🛡',
+    body: 'تمّ تأكيد إيداعك في حساب أمانة Elmaared™. المزوّد بدأ العمل وأنتِ آمنة.',
+  },
+  first_project_completed: {
+    title: 'أول مشروع مكتمل 🎯',
+    body: 'تمّ اعتماد التسليم وإغلاق المشروع بنجاح. شكراً لثقتك بـ Elmaared.',
+  },
+  // Legacy — Phase U seeded rows still reference this; new code emits
+  // `first_agreement_signed`. Keep the copy in case an old row surfaces.
   first_deal: {
     title: 'صفقة Elmaared الأولى ✨',
     body: 'تمّ توقيع أول عقد لك. أمانة Elmaared™ تحمي مالك حتى الاعتماد.',
@@ -47,6 +69,14 @@ const COPY: Record<MilestoneType, { title: string; body: string }> = {
   '100k_gmv': {
     title: '١٠٠ ألف ﷼ — أنتِ من رواد Elmaared',
     body: 'تجاوزت إجمالي ١٠٠ ألف ﷼ من الصفقات الناجحة. شرّفتنا.',
+  },
+  '500k_gmv': {
+    title: '٥٠٠ ألف ﷼ — Elmaared Elite',
+    body: 'تجاوزت نصف مليون ﷼ من الصفقات الموثّقة. إنجاز يستحق الاحتفاء.',
+  },
+  '1m_gmv': {
+    title: 'مليون ﷼ — وسام Elmaared 🏆',
+    body: 'تجاوزت المليون ريال. أنتِ من أوائل من بنوا اقتصاد المعارض الذكي معنا.',
   },
   yearly_anniversary: {
     title: 'سنة كاملة معكِ ❤',

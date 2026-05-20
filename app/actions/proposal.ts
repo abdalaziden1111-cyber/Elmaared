@@ -8,6 +8,7 @@ import { proposalSchema } from '@/schemas/proposal';
 import { scoreProposal } from '@/lib/ai/score-proposal';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
+import { maybeFireMilestone } from '@/lib/milestones/triggers';
 import type { ActionResult } from './auth';
 
 export async function submitProposalAction(
@@ -87,14 +88,18 @@ export async function submitProposalAction(
     return { ok: false, error: friendly.messageAr };
   }
 
-  // Pull RFQ context for scoring (admin client bypasses RLS — supplier wouldn't see all fields normally)
+  // Pull RFQ context for scoring + milestone fanout. Admin client bypasses
+  // RLS — supplier wouldn't see client_id normally, but it's needed here so
+  // the milestone trigger can credit the RFQ owner with their first received
+  // proposal.
   const { data: rfqRaw } = await admin
     .from('rfqs')
-    .select('title, service_type, budget_min, budget_max, proposals_deadline, details')
+    .select('client_id, title, service_type, budget_min, budget_max, proposals_deadline, details')
     .eq('id', rfqId)
     .single();
   const rfq = rfqRaw as
     | {
+        client_id: string;
         title: string;
         service_type: string;
         budget_min: number | null;
@@ -108,6 +113,8 @@ export async function submitProposalAction(
     safeAfter('ai_score_proposal', () =>
       scoreProposal({
         proposalId: proposal.id,
+        // V1.1 — bill the supplier whose submission triggered the call.
+        userId: user.id,
         rfq: {
           title: rfq.title,
           serviceType: rfq.service_type,
@@ -131,6 +138,14 @@ export async function submitProposalAction(
         },
       })
     , { proposal_id: proposal.id, rfq_id: rfqId });
+
+    // V2.1 — celebrate the RFQ owner's first received proposal. Idempotent
+    // via UNIQUE(user_id, milestone_type); silent on subsequent proposals.
+    safeAfter(
+      'milestone_first_proposal_received',
+      () => maybeFireMilestone(rfq.client_id, 'first_proposal_received'),
+      { user_id: rfq.client_id, rfq_id: rfqId }
+    );
   }
 
   await recordAudit(admin, {

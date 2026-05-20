@@ -16,6 +16,7 @@ import {
   filterMatchingSuppliers,
   type MatchCandidate,
 } from '@/lib/matching/suppliers';
+import { maybeFireMilestone } from '@/lib/milestones/triggers';
 import type { ActionResult } from './auth';
 
 type ServiceType = 'booth' | 'gifts' | 'event' | 'printing';
@@ -182,6 +183,15 @@ export async function createRfqAction(
       { rfq_id: rfq.id }
     );
   }
+
+  // V2.1 — celebrate the client's first published RFQ. Fires regardless of
+  // whether they used "publish" or "save draft" — committee Plan v2 §11
+  // treats the act of creating any RFQ as the first-RFQ moment.
+  safeAfter(
+    'milestone_first_rfq',
+    () => maybeFireMilestone(user.id, 'first_rfq'),
+    { user_id: user.id, rfq_id: rfq.id }
+  );
 
   revalidatePath('/dashboard/rfqs');
   revalidatePath('/supplier/rfqs');

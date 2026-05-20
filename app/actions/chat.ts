@@ -6,6 +6,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { mapPostgresError, isDuplicateError } from '@/lib/utils/postgres-errors';
 import { buildNotification } from '@/lib/notifications/build';
 import { recordAudit } from '@/lib/audit/record';
+import { safeAfter } from '@/lib/utils/safe-after';
+import { maybeFireMilestone } from '@/lib/milestones/triggers';
 import type { ActionResult } from './auth';
 
 export async function shortlistProposalAction(
@@ -152,6 +154,20 @@ export async function shortlistProposalAction(
       proposal_id: proposal.id,
       chat_id: chat.id,
     });
+  }
+
+  // V2.1 — celebrate the first chat for both parties. Idempotent.
+  safeAfter(
+    'milestone_first_chat_opened_client',
+    () => maybeFireMilestone(user.id, 'first_chat_opened'),
+    { user_id: user.id, side: 'client', chat_id: chat.id }
+  );
+  if (supplierOwner) {
+    safeAfter(
+      'milestone_first_chat_opened_supplier',
+      () => maybeFireMilestone(supplierOwner.owner_id, 'first_chat_opened'),
+      { user_id: supplierOwner.owner_id, side: 'supplier', chat_id: chat.id }
+    );
   }
 
   revalidatePath(`/dashboard/rfqs/${proposal.rfq_id}/compare`);

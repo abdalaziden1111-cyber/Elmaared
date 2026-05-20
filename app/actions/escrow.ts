@@ -7,6 +7,9 @@ import { requireRole } from '@/lib/auth/require-role';
 import { isSafeHttpsUrl } from '@/lib/utils/url';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
+import { safeAfter } from '@/lib/utils/safe-after';
+import { maybeFireMilestone } from '@/lib/milestones/triggers';
+import { checkGmvMilestones } from '@/lib/milestones/gmv';
 import type { ActionResult } from './auth';
 
 export async function uploadInitialReceiptAction(
@@ -125,6 +128,22 @@ export async function adminConfirmInitialDepositAction(
 
   // MVP evidence-only mode: RFQ is already in_progress (set by signAgreementAction).
   // Admin confirmation is just acknowledgement of the receipt for the audit trail.
+
+  // V2.1 — celebrate the client's first funded escrow. Look up the RFQ
+  // owner here (admin client bypasses RLS) since the action is admin-side.
+  safeAfter(
+    'milestone_first_escrow_funded',
+    async () => {
+      const { data: rfqRow } = await admin
+        .from('rfqs')
+        .select('client_id')
+        .eq('id', tx.rfq_id)
+        .maybeSingle();
+      const clientId = (rfqRow as { client_id: string } | null)?.client_id;
+      if (clientId) await maybeFireMilestone(clientId, 'first_escrow_funded');
+    },
+    { rfq_id: tx.rfq_id, escrow_id: escrowId }
+  );
 
   revalidatePath('/admin/escrow/pending-deposits');
   revalidatePath(`/dashboard/rfqs/${tx.rfq_id}/escrow`);
@@ -285,6 +304,51 @@ export async function approveDeliveryAction(
     resourceId: rfqId,
   });
 
+  // V2.1 — celebrate the first completed project for both parties and
+  // re-check GMV thresholds (this escrow just flipped to `released`, which
+  // is what computeUserGmv() sums). The client is the caller; the supplier
+  // is reached via the winning proposal → suppliers.owner_id.
+  safeAfter(
+    'milestone_first_project_completed_client',
+    () => maybeFireMilestone(user.id, 'first_project_completed'),
+    { user_id: user.id, rfq_id: rfqId }
+  );
+  safeAfter(
+    'milestone_gmv_client',
+    () => checkGmvMilestones(user.id),
+    { user_id: user.id, rfq_id: rfqId }
+  );
+  safeAfter(
+    'milestone_first_project_completed_supplier',
+    async () => {
+      const { data: winRow } = await admin
+        .from('rfqs')
+        .select('winning_proposal_id')
+        .eq('id', rfqId)
+        .maybeSingle();
+      const winningId = (winRow as { winning_proposal_id: string | null } | null)
+        ?.winning_proposal_id;
+      if (!winningId) return;
+      const { data: propRow } = await admin
+        .from('proposals')
+        .select('supplier_id')
+        .eq('id', winningId)
+        .maybeSingle();
+      const supplierId = (propRow as { supplier_id: string } | null)?.supplier_id;
+      if (!supplierId) return;
+      const { data: supRow } = await admin
+        .from('suppliers')
+        .select('owner_id')
+        .eq('id', supplierId)
+        .maybeSingle();
+      const ownerId = (supRow as { owner_id: string } | null)?.owner_id;
+      if (!ownerId) return;
+      await maybeFireMilestone(ownerId, 'first_project_completed');
+      await checkGmvMilestones(ownerId);
+    },
+    { rfq_id: rfqId }
+  );
+
   revalidatePath(`/dashboard/rfqs/${rfqId}`);
   return { ok: true };
 }
@@ -333,6 +397,47 @@ export async function adminReleaseToSupplierAction(
   });
 
   await admin.from('rfqs').update({ status: 'completed' }).eq('id', tx.rfq_id);
+
+  // V2.1 — admin payout path. Mirrors approveDeliveryAction's milestone
+  // fanout: fire `first_project_completed` + GMV check for both sides.
+  safeAfter(
+    'milestone_project_complete_admin_payout',
+    async () => {
+      const { data: rfqRow } = await admin
+        .from('rfqs')
+        .select('client_id, winning_proposal_id')
+        .eq('id', tx.rfq_id)
+        .maybeSingle();
+      const rfqMeta = rfqRow as
+        | { client_id: string; winning_proposal_id: string | null }
+        | null;
+      if (rfqMeta?.client_id) {
+        await maybeFireMilestone(rfqMeta.client_id, 'first_project_completed');
+        await checkGmvMilestones(rfqMeta.client_id);
+      }
+      if (rfqMeta?.winning_proposal_id) {
+        const { data: propRow } = await admin
+          .from('proposals')
+          .select('supplier_id')
+          .eq('id', rfqMeta.winning_proposal_id)
+          .maybeSingle();
+        const supplierId = (propRow as { supplier_id: string } | null)?.supplier_id;
+        if (supplierId) {
+          const { data: supRow } = await admin
+            .from('suppliers')
+            .select('owner_id')
+            .eq('id', supplierId)
+            .maybeSingle();
+          const ownerId = (supRow as { owner_id: string } | null)?.owner_id;
+          if (ownerId) {
+            await maybeFireMilestone(ownerId, 'first_project_completed');
+            await checkGmvMilestones(ownerId);
+          }
+        }
+      }
+    },
+    { rfq_id: tx.rfq_id, escrow_id: escrowId }
+  );
 
   revalidatePath('/admin/escrow/pending-releases');
   return { ok: true };

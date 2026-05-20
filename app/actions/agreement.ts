@@ -10,6 +10,7 @@ import { safeAfter } from '@/lib/utils/safe-after';
 import { mapPostgresError } from '@/lib/utils/postgres-errors';
 import { recordAudit } from '@/lib/audit/record';
 import { buildNotification } from '@/lib/notifications/build';
+import { maybeFireMilestone } from '@/lib/milestones/triggers';
 import type { ActionResult } from './auth';
 
 // Tamper-evident signature hash: SHA-256 over the canonical fields of the
@@ -284,6 +285,10 @@ export async function submitUnderstandingAction(
             proposalSummary: `السعر ${prop.total_price.toLocaleString('en')} ﷼ — مدة التسليم ${prop.delivery_days} يوم. ${prop.description ?? ''}\n${prop.scope_of_work ?? ''}`,
             clientUnderstanding: updatedClient,
             supplierUnderstanding: updatedSupplier,
+            // V1.1 — bill the user who triggered the final "both submitted"
+            // condition. Either client or supplier works; both are bounded
+            // by the same daily cap.
+            userId: user.id,
           }),
         { agreement_id: ag.id }
       );
@@ -368,6 +373,28 @@ export async function signAgreementAction(agreementId: string): Promise<ActionRe
       .from('rfqs')
       .update({ status: 'in_progress' })
       .eq('id', ag.rfq_id);
+
+    // V2.1 — celebrate the first signed agreement for both parties.
+    // ag.client_id is auth.users.id (matches profiles.id). ag.supplier_id
+    // is the suppliers.id — resolve to the owner profile id.
+    safeAfter(
+      'milestone_first_agreement_signed_client',
+      () => maybeFireMilestone(ag.client_id, 'first_agreement_signed'),
+      { user_id: ag.client_id, agreement_id: ag.id }
+    );
+    safeAfter(
+      'milestone_first_agreement_signed_supplier',
+      async () => {
+        const { data: supRow } = await admin
+          .from('suppliers')
+          .select('owner_id')
+          .eq('id', ag.supplier_id)
+          .maybeSingle();
+        const ownerId = (supRow as { owner_id: string } | null)?.owner_id;
+        if (ownerId) await maybeFireMilestone(ownerId, 'first_agreement_signed');
+      },
+      { supplier_id: ag.supplier_id, agreement_id: ag.id }
+    );
 
     // Defensively create the escrow_transactions row in the action itself,
     // mirroring the broadened evidence-only trigger. The trigger handles this
