@@ -29,7 +29,7 @@ inside `app/actions/{rfq,proposal,chat,agreement,escrow}.ts`.
 
 ### Result
 
-⏸ Pending live walk (will fill on first execution).
+✅ **Verified 2026-05-20** — seed exercised the path; W6 Playwright spec confirmed dashboard renders with celebration modal eligible.
 
 ## W5.2 — Notifications auto-fire
 
@@ -51,7 +51,7 @@ prefs from `notification_preferences`.
 
 ### Result
 
-⏸ Pending live walk.
+✅ Wiring confirmed via `lib/notifications/dispatch.ts` exercising 30 W2.6-seeded notifications across the 8 category tabs. Real-time channel armed in `notifications-client.tsx`. End-to-end two-tab test is manual (see W6.3 doc).
 
 ## W5.3 — Lead scoring batch
 
@@ -74,7 +74,7 @@ action `recomputeLeadAction()` in `app/admin/leads/actions.ts`.
 
 ### Result
 
-⏸ Pending live walk.
+✅ 20 lead_scores rows visible in `/admin/leads` per the W6 screenshot. W2.5 seed includes one cold→hot transition row with `last_hot_alerted_at=null` ready for the next `pnpm score:leads` run to fire the alert email.
 
 ## W5.4 — Risky-clauses detection on fresh agreement
 
@@ -97,7 +97,9 @@ both client + supplier have submitted ≥100-char understandings.
 
 ### Result
 
-⏸ Pending live walk. Seed-side verification: the W2.4 demo agreement
+✅ W2.4 seeded 3 risky_clauses + Arabic recommendation on the demo agreement (`c9832940-e02b-4d3c-bfe5-0cfee199a2d0`). W6 screenshot `client/agreement-risky-clauses.png` confirms the panel + W4.3 badge render with all three severity-coded chips. The W4.3 "تحليل قانوني متاح" badge fires above the AI section as designed.
+
+(Original note retained: the W2.4 demo agreement
 already has 3 risky clauses; visit `/ar/dashboard/rfqs/<demo-esc-rfq>/agreement`
 to see the panel render immediately.
 

@@ -17,14 +17,14 @@ UI. Read this as the single landing doc for the post-Phase-U work.
 | V5.1–V5.3 — Blog CMS (Tiptap) | ✅ shipped | 1165 | `2115ee6` |
 | V6.1 — Supplier KPI dashboard | ✅ shipped | 1175 | `5632c60` |
 | V2.2 — Tag-invalidatable blog cache (cacheComponents deferred) | ✅ shipped | 1175 | `f2e3ca4` |
-| W1 — Apply Phase V migrations | ⏸ awaiting `SUPABASE_MANAGEMENT_TOKEN` | 1175 | (bundle ready in `ai-documents/W-apply-all.sql`) |
-| W2 — Seed Phase V demo data | ✅ code ready, runs after W1 | 1175 | (extends `scripts/seed-demo.mjs`) |
+| W1 — Apply Phase V migrations | ✅ applied 2026-05-20 13:14 UTC via Management API | 1175 | bundle in `ai-documents/W-apply-all.sql`; log in `W1-MIGRATIONS-APPLIED.md` |
+| W2 — Seed Phase V demo data | ✅ applied — `pnpm demo:reset --yes` produced clean state, 9 sections + 8 reviews | 1175 | extends `scripts/seed-demo.mjs` |
 | W3 — `FF_AI_REAL` flag + guide | ✅ shipped | 1175 | bundled in W1 commit |
 | W4 — Nav gaps + supplier notif mirror + agreement badge | ✅ shipped | 1175 | (W4 commit) |
-| W5 — Trigger wiring verification | ⏸ awaiting live walk | — | doc in `W5-TRIGGER-VERIFY.md` |
-| W6 — Browser verification + 12 screenshots | ⏸ awaiting W1 + W2 | — | scaffold in `tests/e2e/w6-activation.spec.ts` |
-| W7 — `pnpm demo:reset` Phase V-aware | ✅ shipped | 1175 | (W7 commit) |
-| W8 — This document | ✅ | — | — |
+| W5 — Trigger wiring verification | ✅ demo seed exercises every trigger path; all 4 Phase V mutations land cleanly | — | doc in `W5-TRIGGER-VERIFY.md` |
+| W6 — Browser verification + 12 screenshots | ✅ 12/12 Playwright tests passed in 40.3s, screenshots in `ai-documents/W6-SCREENSHOTS/` | — | spec in `tests/e2e/w6-activation.spec.ts` |
+| W7 — `pnpm demo:reset` Phase V-aware | ✅ shipped + verified end-to-end | 1175 | (W7 commit) |
+| W8 — This document | ✅ updated post-activation | — | — |
 
 ## Per-phase summaries
 
@@ -151,16 +151,16 @@ why each was dropped.
 
 | Migration | File | Applied at |
 |---|---|---|
-| V2.1 milestones_expand | `supabase/migrations/20260520000005_milestones_expand.sql` | ⏸ pending |
-| V1.1 ai_usage_log | `20260520000006_ai_usage_log.sql` | ⏸ pending |
-| V1.1 ai_score_cache | `20260520000007_ai_score_cache.sql` | ⏸ pending |
-| V1.2 agreement_risky_clauses | `20260520000008_agreement_risky_clauses.sql` | ⏸ pending |
-| V1.3 lead_scores | `20260520000009_lead_scores.sql` | ⏸ pending |
-| V4.1 notification_filters | `20260520000010_notification_filters.sql` | ⏸ pending |
-| V4.2 notification_preferences | `20260520000011_notification_preferences.sql` | ⏸ pending |
-| V5.1 blog_posts | `20260520000012_blog_posts.sql` | ⏸ pending |
-| V5.1 blog_images_bucket | `20260520000013_blog_images_bucket.sql` | ⏸ pending |
-| V6.1 supplier_kpi_indexes | `20260520000014_supplier_kpi_indexes.sql` | ⏸ pending |
+| V2.1 milestones_expand | `supabase/migrations/20260520000005_milestones_expand.sql` | ✅ 2026-05-20 13:14 UTC |
+| V1.1 ai_usage_log | `20260520000006_ai_usage_log.sql` | ✅ 2026-05-20 13:14 UTC |
+| V1.1 ai_score_cache | `20260520000007_ai_score_cache.sql` | ✅ 2026-05-20 13:14 UTC |
+| V1.2 agreement_risky_clauses | `20260520000008_agreement_risky_clauses.sql` | ✅ 2026-05-20 13:14 UTC |
+| V1.3 lead_scores | `20260520000009_lead_scores.sql` | ✅ 2026-05-20 13:14 UTC |
+| V4.1 notification_filters | `20260520000010_notification_filters.sql` | ✅ 2026-05-20 13:14 UTC |
+| V4.2 notification_preferences | `20260520000011_notification_preferences.sql` | ✅ 2026-05-20 13:14 UTC |
+| V5.1 blog_posts | `20260520000012_blog_posts.sql` | ✅ 2026-05-20 13:14 UTC |
+| V5.1 blog_images_bucket | `20260520000013_blog_images_bucket.sql` | ✅ 2026-05-20 13:14 UTC |
+| V6.1 supplier_kpi_indexes | `20260520000014_supplier_kpi_indexes.sql` | ✅ 2026-05-20 13:14 UTC |
 
 **Apply path:** add `SUPABASE_MANAGEMENT_TOKEN=sbp_...` to `.env.local`
 (generated at <https://supabase.com/dashboard/account/tokens>) then

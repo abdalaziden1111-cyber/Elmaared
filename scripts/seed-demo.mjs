@@ -555,8 +555,21 @@ async function deleteAllForClient(clientId) {
   await sb.from('ai_usage_log').delete().eq('model', 'mock-seed');
   await sb.from('ai_score_cache').delete().like('hash', 'mock-seed-%');
   await sb.from('lead_scores').delete().like('narrative', '[mock]%');
-  // Wipe synthetic 'lead-' profiles (we'll re-insert with stable IDs below).
-  await sb.from('profiles').delete().like('id', '00000000-0000-4000-8000-1234%');
+  // Wipe synthetic lead auth users. profiles + lead_scores cascade via
+  // their FK ON DELETE CASCADE chain.
+  for (let i = 0; i < 15; i++) {
+    const email = `lead.synth.${i.toString().padStart(2, '0')}@example.com`;
+    const uid = await findAuthUserId(email);
+    if (uid) {
+      // profiles cascade-deletes on auth.users delete, but RLS / FKs from
+      // lead_scores → profiles also cascade. We DO need to wipe lead_scores
+      // first if narrative happens to be NULL (cold leads) since the
+      // narrative-LIKE wipe above misses those.
+      await sb.from('lead_scores').delete().eq('user_id', uid);
+      await sb.from('profiles').delete().eq('id', uid);
+      await sb.auth.admin.deleteUser(uid, false).catch(() => {});
+    }
+  }
   await sb
     .from('notification_preferences')
     .delete()
@@ -695,23 +708,35 @@ async function deleteAllForClient(clientId) {
   console.log(`  ✓ W2.4: 3 risky_clauses seeded on agreement ${agree.id}`);
 
   // ── W2.5 Lead scores (20 leads) ──
-  // 15 synthetic profile rows (no auth.users) + ahmed + 4 demo suppliers = 20.
-  // Synthetic IDs use a fixed pattern (00000000-0000-4000-8000-1234XXXX)
-  // so wipe-on-rerun is deterministic.
+  // 15 synthetic auth.users + profiles + ahmed + 4 demo suppliers = 20.
+  // Synthetic users keyed by email `lead.synth.NN@example.com` for
+  // deterministic wipe-on-rerun. profiles.id FK to auth.users(id) — we
+  // create real auth users (email_confirm=true) so the FK is satisfied.
   const syntheticProfiles = [];
   for (let i = 0; i < 15; i++) {
-    const id = `00000000-0000-4000-8000-1234${i.toString().padStart(4, '0')}`;
+    const email = `lead.synth.${i.toString().padStart(2, '0')}@example.com`;
     const fullName = `لقاء تجريبي رقم ${i + 1}`;
-    const { error } = await sb.from('profiles').insert({
-      id,
-      role: i % 2 === 0 ? 'client' : 'supplier',
-      full_name: fullName,
-      preferred_language: 'ar',
-    });
-    if (error && !/duplicate|already exists/i.test(error.message)) {
-      throw new Error(`synthetic profile ${i}: ${error.message}`);
+    const role = i % 2 === 0 ? 'client' : 'supplier';
+    let uid = await findAuthUserId(email);
+    if (!uid) {
+      const { data, error } = await sb.auth.admin.createUser({
+        email,
+        password: 'SyntheticLead2026!',
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+      if (error) throw new Error(`synthetic auth user ${email}: ${error.message}`);
+      uid = data.user.id;
+      // Insert the matching profile row.
+      const { error: pe } = await sb.from('profiles').insert({
+        id: uid,
+        role,
+        full_name: fullName,
+        preferred_language: 'ar',
+      });
+      if (pe) throw new Error(`synthetic profile ${email}: ${pe.message}`);
     }
-    syntheticProfiles.push({ id, role: i % 2 === 0 ? 'client' : 'supplier' });
+    syntheticProfiles.push({ id: uid, role });
   }
   // Build 20-lead list: 3 hot, 8 warm, 9 cold.
   const allLeadUsers = [
@@ -1038,6 +1063,7 @@ async function deleteAllForClient(clientId) {
 
   // 8 completed projects = first 8 accepted proposals + agreement + escrow.released
   const completionTarget = Math.min(8, w29ProposalIds.length);
+  const completedAgList = []; // collect for the reviews loop below
   for (let i = 0; i < completionTarget; i++) {
     const { id: propId, rfqId, createdAt } = w29ProposalIds[i];
     // Need a client_id for the agreement — reuse kpiClientId.
@@ -1061,6 +1087,7 @@ async function deleteAllForClient(clientId) {
       console.warn(`    ⚠ agreement ${i}: ${agErr.message}`);
       continue;
     }
+    completedAgList.push({ id: agreementRow.id, rfqId, clientId: kpiClientId });
     // Realistic supplier_net 30k-250k.
     const supplierNet = 30000 + (i * 27000) % 220000;
     const releasedAt = new Date(
@@ -1087,36 +1114,42 @@ async function deleteAllForClient(clientId) {
   }
   console.log(`    ✓ ${completionTarget} completed projects (released escrows)`);
 
-  // 25 reviews spread across past 12 months, averaging ~4.6 stars.
-  // Need an agreement_id per review — re-use the first 25 accepted/agreement IDs.
-  const { data: reviewableAgs } = await sb
-    .from('agreements')
-    .select('id, rfq_id, client_id')
+  // Wipe prior W2.9 reviews to keep this section idempotent. The reviews
+  // schema has no agreement_id column and stores text in `comment`
+  // (UNIQUE on rfq_id — one review per RFQ).
+  await sb
+    .from('reviews')
+    .delete()
     .eq('supplier_id', baseSupplierId)
-    .like('client_understanding', '[w2.9-mock]%')
-    .limit(25);
-  const reviewableAgList = (reviewableAgs ?? []);
+    .like('comment', '[w2.9-mock]%');
+
+  // 25 reviews spread across past 12 months, averaging ~4.6 stars.
+  // Re-use the in-memory completedAgList rather than re-querying — the
+  // LIKE filter on [w2.9-mock] was unreliable across PostgREST URL
+  // encoding for square brackets. With only 8 completed agreements,
+  // we cap reviews at 8 (one per project — realistic anyway).
+  const reviewableAgList = completedAgList;
   const ratingPool = [5, 5, 5, 5, 4, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 4, 4, 5, 5, 5, 4, 5, 5, 4, 5];
   let reviewsInserted = 0;
   for (let i = 0; i < Math.min(25, reviewableAgList.length); i++) {
     const ag = reviewableAgList[i];
     const rating = ratingPool[i];
     const { error: revErr } = await sb.from('reviews').insert({
-      agreement_id: ag.id,
-      rfq_id: ag.rfq_id,
+      rfq_id: ag.rfqId,
       supplier_id: baseSupplierId,
-      client_id: ag.client_id,
+      client_id: ag.clientId,
       rating_overall: rating,
       rating_quality: rating,
       rating_timeliness: Math.max(3, rating - 1),
       rating_communication: rating,
       rating_flexibility: rating,
       rating_price_value: Math.max(3, rating - 1),
-      written_review: `[w2.9-mock] مراجعة ${i + 1} — ${rating === 5 ? 'ممتاز' : 'جيد جداً'}.`,
+      comment: `[w2.9-mock] مراجعة ${i + 1} — ${rating === 5 ? 'ممتاز' : 'جيد جداً'}.`,
       is_public: true,
       created_at: new Date(Date.now() - i * 14 * dayMs).toISOString(),
     });
-    if (!revErr) reviewsInserted++;
+    if (revErr) console.warn(`    ⚠ review ${i}: ${revErr.message}`);
+    else reviewsInserted++;
   }
   console.log(`    ✓ ${reviewsInserted} reviews seeded (avg ~4.6 stars)`);
 

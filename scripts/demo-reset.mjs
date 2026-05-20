@@ -286,8 +286,11 @@ function runScript(scriptName) {
     () => sb.from('ai_usage_log').delete().eq('model', 'mock-seed'),
     () => sb.from('ai_score_cache').delete().like('hash', 'mock-seed-%'),
     () => sb.from('lead_scores').delete().like('narrative', '[mock]%'),
-    () => sb.from('profiles').delete().like('id', '00000000-0000-4000-8000-1234%'),
     () => sb.from('blog_posts').delete().like('slug', 'demo-w2-%'),
+    // Synthetic lead auth users are wiped inline by seed-demo (it walks
+    // emails lead.synth.NN@example.com and cascades through delete).
+    // The pre-wipe here only handles tables — auth.users requires the
+    // listUsers + deleteUser dance.
   ];
   for (const wipe of phaseVWipes) {
     const r = await wipe();

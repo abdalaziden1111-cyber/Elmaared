@@ -23,11 +23,11 @@ CREATE TABLE ai_usage_log (
 );
 
 -- Hot path: today's spend per user — the rate limiter reads this on every
--- AI call. Index is partial to keep it tiny (7-day window covers the
--- daily lookup + a margin for time-zone slop).
+-- AI call. We'd ideally use a partial index (WHERE created_at > now() - 7d)
+-- but Postgres requires IMMUTABLE predicates and NOW() is VOLATILE. The
+-- full index is still bounded by call volume (one row per gateway call).
 CREATE INDEX idx_ai_usage_log_user_recent
-  ON ai_usage_log (user_id, created_at DESC)
-  WHERE created_at > (NOW() - INTERVAL '7 days');
+  ON ai_usage_log (user_id, created_at DESC);
 
 -- Admin dashboard sort.
 CREATE INDEX idx_ai_usage_log_created ON ai_usage_log (created_at DESC);

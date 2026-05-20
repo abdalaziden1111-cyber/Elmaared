@@ -78,9 +78,11 @@ BEGIN
       created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    -- Postgres requires IMMUTABLE predicates; NOW() is VOLATILE. We drop
+    -- the WHERE clause — the resulting full index still hits the
+    -- rate-limit lookup (which always filters by user_id + created_at).
     CREATE INDEX IF NOT EXISTS idx_ai_usage_log_user_recent
-      ON ai_usage_log (user_id, created_at DESC)
-      WHERE created_at > (NOW() - INTERVAL '7 days');
+      ON ai_usage_log (user_id, created_at DESC);
 
     CREATE INDEX IF NOT EXISTS idx_ai_usage_log_created
       ON ai_usage_log (created_at DESC);

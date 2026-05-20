@@ -84,4 +84,9 @@ live UI under the intended persona.
 
 ## Last run
 
-Pending — run after W1 migrations land and `pnpm demo:seed` completes.
+**2026-05-20 16:38 UTC** — `pnpm exec playwright test tests/e2e/w6-activation.spec.ts --project chromium --workers=1`: **12 passed (40.3s)**. All 12 screenshots captured to `ai-documents/W6-SCREENSHOTS/<persona>/*.png`.
+
+Spot-checks confirmed visually:
+- `admin/leads-dashboard.png` — 20 leads sorted hot 🔥 → warm 🟡 → cold ❄ with category chips and signal stats.
+- `supplier/kpi-dashboard.png` — 33 proposals, 58.3% acceptance, 4.8★ avg, 1 active project, all 4 charts populated (revenue bars, category donut, win-rate bars, satisfaction line).
+- `client/agreement-risky-clauses.png` — 3 severity-coded chips render (high red / medium amber / low blue) with the W4.3 "تحليل قانوني متاح" badge above the AI section. Recommendation prefixed `[mock]` so seed origin is visible.
