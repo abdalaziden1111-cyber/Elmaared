@@ -84,30 +84,44 @@ Hosting:   Vercel (Fluid Compute, Node.js 24)
 
 ## Demo
 
-For local UX-Plan-v2 demos (Phase U). Requires `.env.local` with
+For local UX-Plan-v2 demos (Phase U + V). Requires `.env.local` with
 `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` set, plus
-Phase-Z2 migrations applied to the live dev DB (see
-[`ai-documents/Z2-DB-APPLY-LOG.md`](./ai-documents/Z2-DB-APPLY-LOG.md)).
+Phase-Z2 and Phase-V migrations applied to the live dev DB (see
+[`ai-documents/Z2-DB-APPLY-LOG.md`](./ai-documents/Z2-DB-APPLY-LOG.md)
+and the Phase V apply path below).
 
 ```bash
 # One-time setup (creates the 3 test personas):
 pnpm exec node scripts/seed-test-users.mjs
 
-# Seed full demo state (5 suppliers + 2 RFQs + proposals + escrow + invoice):
+# Apply Phase V migrations (needs SUPABASE_MANAGEMENT_TOKEN in .env.local;
+# fallback is manual paste of ai-documents/W-apply-all.sql in Studio):
+pnpm exec node scripts/apply-phase-v-migrations.mjs
+pnpm exec node scripts/verify-pending-migrations.mjs
+
+# Seed full demo state (Phase U + V data — 5 suppliers + 2 RFQs + 30
+# proposals + 8 completed projects + 20 leads + 30 notifications + 8 blog
+# posts + ai_usage_log mocks):
 pnpm demo:seed
+pnpm blog:seed     # one-time migration of the 5 static blog articles
 
 # Reset between demos — preserves test users + immutable audit ledger,
-# wipes demo-specific RFQs (RFQ-DEMO-*) + demo suppliers, re-seeds.
+# wipes demo-specific RFQs (RFQ-DEMO-*) + Phase V mock data + demo
+# suppliers, re-seeds.
 pnpm demo:reset
 
 # Skip the confirmation prompt:
 pnpm demo:reset -- --yes
 ```
 
-Flag-flip + verified-component matrix lives in
-[`ai-documents/PHASE-U-FLAG-GUIDE.md`](./ai-documents/PHASE-U-FLAG-GUIDE.md)
-and
+Phase U flag-flip + verified-component matrix:
+[`ai-documents/PHASE-U-FLAG-GUIDE.md`](./ai-documents/PHASE-U-FLAG-GUIDE.md) +
 [`ai-documents/UI-ACTIVATION-VERIFIED.md`](./ai-documents/UI-ACTIVATION-VERIFIED.md).
+
+Phase V implementation report + flag guide + W6 verified matrix:
+[`ai-documents/PHASE-V-IMPLEMENTATION.md`](./ai-documents/PHASE-V-IMPLEMENTATION.md) +
+[`ai-documents/PHASE-V-FLAG-GUIDE.md`](./ai-documents/PHASE-V-FLAG-GUIDE.md) +
+[`ai-documents/W6-PHASE-V-VERIFIED.md`](./ai-documents/W6-PHASE-V-VERIFIED.md).
 
 ---
 
