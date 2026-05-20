@@ -831,8 +831,13 @@ async function deleteAllForClient(clientId) {
     // System / dispute / review × 6 (review uses 'system' since enum doesn't have a review type)
     { type: 'panic_button', title: '🚨 تصعيد جديد', body: 'محادثة RFQ-DEMO-1023 صعّدها العميل.', daysAgo: 1 },
     { type: 'panic_button', title: '🚨 نزاع مفتوح', body: 'دخل Admin كطرف ثالث.', daysAgo: 3 },
-    { type: 'system', title: 'تقييم جديد وصلك', body: 'العميل قيّمك بـ ٥ نجوم.', daysAgo: 0 },
-    { type: 'system', title: 'تقييم جديد وصلك', body: 'العميل قيّمك بـ ٤ نجوم.', daysAgo: 2 },
+    // B-002 — Ahmed is a CLIENT, so the recipient is the one giving the
+    // review, not the one receiving it. Earlier copy ("قيّمك بـ ٥ نجوم"
+    // = "rated you 5 stars") was modelled after a supplier perspective
+    // and felt nonsensical to a client tester. Reworded as a record-
+    // keeping confirmation from the client side.
+    { type: 'system', title: 'تم تسجيل تقييمك', body: 'سجّلنا تقييمك بـ ٥ نجوم للمورد بعد اكتمال RFQ-DEMO-ESC.', daysAgo: 0 },
+    { type: 'system', title: 'تم تسجيل تقييمك', body: 'سجّلنا تقييمك بـ ٤ نجوم للمورد على RFQ-DEMO-W29-005.', daysAgo: 2 },
     { type: 'system', title: 'صيانة ليلة الجمعة', body: 'المنصة ستكون في وضع الصيانة من ١-٣ صباحاً.', daysAgo: 1 },
     { type: 'system', title: 'تحديث سياسة الخصوصية', body: 'راجع التغييرات الجديدة في مركز حقوق البيانات.', daysAgo: 4 },
     { type: 'system', title: 'ميزة جديدة: لوحة الأداء', body: 'الموردون: راجعوا KPIs والإيرادات في صفحة واحدة.', daysAgo: 6 },
