@@ -47,8 +47,22 @@ export default async function LocaleLayout({
   } = await supabase.auth.getUser();
 
   return (
-    <html lang={locale} dir={dir} className={`${plexArabic.variable} ${inter.variable}`}>
-      <body className="min-h-screen bg-cream font-arabic text-charcoal antialiased">
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${plexArabic.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
+      {/* B-005 — a handful of common browser extensions (YouTube Downloader,
+          Grammarly, etc.) inject attributes/elements onto <body> before React
+          hydrates, which logs a hydration mismatch in dev and lights up the
+          Next.js dev-overlay "1 Issue" pill (B-007). suppressHydrationWarning
+          silences the warning only at the body level so app-level hydration
+          bugs in child components still surface normally. */}
+      <body
+        className="min-h-screen bg-cream font-arabic text-charcoal antialiased"
+        suppressHydrationWarning
+      >
         <NextIntlClientProvider messages={messages} locale={locale}>
           {/* PostHog browser init + identify(). Self-no-ops without an API key. */}
           <PosthogProvider userId={user?.id ?? null} />

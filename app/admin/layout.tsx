@@ -110,8 +110,20 @@ export default async function AdminLayout({
   const messages = await getMessages({ locale: 'ar' });
 
   return (
-    <html lang="ar" dir="rtl" className={`${plexArabic.variable} ${inter.variable}`}>
-      <body className="min-h-screen bg-cream font-arabic text-charcoal antialiased">
+    <html
+      lang="ar"
+      dir="rtl"
+      className={`${plexArabic.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
+      {/* B-005 mirror — same browser-extension hydration noise mitigation
+          as in app/[locale]/layout.tsx. Silences only the body/html-level
+          mismatch caused by extensions; component-level hydration bugs
+          still surface. */}
+      <body
+        className="min-h-screen bg-cream font-arabic text-charcoal antialiased"
+        suppressHydrationWarning
+      >
         <NextIntlClientProvider locale="ar" messages={messages}>
           <div className="flex min-h-screen flex-col lg:flex-row">
             <MobileMenu title="Admin · تطبيق المعارض" variant="dark">
