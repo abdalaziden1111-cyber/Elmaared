@@ -173,7 +173,7 @@ export function NotificationsClient(props: Props) {
 
   return (
     <div>
-      <audio ref={audioRef} src="/sounds/notification.mp3" preload="auto" />
+      <audio ref={audioRef} src="/sounds/notification.wav" preload="auto" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1">
