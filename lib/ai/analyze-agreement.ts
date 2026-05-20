@@ -11,6 +11,7 @@ import { assertDailyBudget, RateLimitError } from './rate-limit';
 import { hashKey, readCache, writeCache } from './cache';
 import { recordUsage } from './usage-log';
 import { computeCost } from './cost';
+import { flags } from '@/lib/feature-flags';
 import { log } from '@/lib/utils/logger';
 
 const analysisSchema = z.object({
@@ -63,11 +64,17 @@ export async function analyzeAgreement(args: {
 }): Promise<void> {
   const admin = createAdminClient();
 
-  if (!aiGateway) {
+  // Phase W3 — when FF_AI_REAL=false (or gateway not configured), skip
+  // the real API call. The W2 seed pre-populates ai_risky_clauses +
+  // ai_recommendation on the demo agreement so the UI panel still
+  // renders with content.
+  if (!aiGateway || !flags.AI_REAL) {
     await admin
       .from('agreements')
       .update({
-        ai_recommendation: '[تحليل الذكاء الاصطناعي غير متاح في هذه البيئة]',
+        ai_recommendation: !aiGateway
+          ? '[تحليل الذكاء الاصطناعي غير متاح في هذه البيئة]'
+          : '[mock — عيّن NEXT_PUBLIC_FF_AI_REAL=true لتفعيل تحليل قانوني حقيقي]',
       })
       .eq('id', args.agreementId);
     return;

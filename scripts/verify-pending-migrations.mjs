@@ -83,6 +83,52 @@ async function checkTracker() {
   }
 }
 
+// Phase W1 — Phase V tracker (separate table from Z2).
+async function checkPhaseVTracker() {
+  const r = await rest(
+    `_w_migrations_applied?select=filename,applied_at&order=filename.asc`
+  );
+  if (!r.ok)
+    return { check: 'phase-v-tracker', ok: false, status: r.status, body: r.body };
+  try {
+    const rows = JSON.parse(r.body);
+    return { check: 'phase-v-tracker', ok: true, rows };
+  } catch {
+    return { check: 'phase-v-tracker', ok: false, body: r.body };
+  }
+}
+
+// Probe a new enum value indirectly: filter user_milestones with the
+// value. PostgREST returns 400 with "invalid input value for enum" when
+// the value doesn't exist, 200 otherwise.
+async function checkMilestoneEnum(value) {
+  const r = await rest(
+    `user_milestones?select=id&milestone_type=eq.${encodeURIComponent(value)}&limit=0`
+  );
+  if (r.ok) return { check: `enum:milestone_type:${value}`, ok: true };
+  return {
+    check: `enum:milestone_type:${value}`,
+    ok: false,
+    status: r.status,
+    body: r.body,
+  };
+}
+
+// Storage bucket via the Storage REST API.
+async function checkBucket(bucketId) {
+  const root = URL.replace(/\/$/, '');
+  const res = await fetch(`${root}/storage/v1/bucket/${bucketId}`, {
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
+  });
+  if (res.ok) return { check: `bucket:${bucketId}`, ok: true };
+  return {
+    check: `bucket:${bucketId}`,
+    ok: false,
+    status: res.status,
+    body: await res.text(),
+  };
+}
+
 const CHECKS = [
   // Migration 1 — ai_confidence_metadata
   () => checkColumn('proposals', 'ai_confidence'),
@@ -109,6 +155,33 @@ const CHECKS = [
 
   // Tracker (covers Item-1 / migration 7 indirectly — once tracker row
   // is present, the RLS helpers + rewritten policies are in place too).
+
+  // ===== Phase V migrations (W1) =====
+  // V2.1 — 6 new milestone_type enum values
+  () => checkMilestoneEnum('first_proposal_received'),
+  () => checkMilestoneEnum('first_chat_opened'),
+  () => checkMilestoneEnum('first_agreement_signed'),
+  () => checkMilestoneEnum('first_escrow_funded'),
+  () => checkMilestoneEnum('first_project_completed'),
+  () => checkMilestoneEnum('500k_gmv'),
+  () => checkMilestoneEnum('1m_gmv'),
+
+  // V1.1 — ai_usage_log + ai_score_cache
+  () => checkTable('ai_usage_log'),
+  () => checkTable('ai_score_cache'),
+
+  // V1.2 — ai_risky_clauses column on agreements
+  () => checkColumn('agreements', 'ai_risky_clauses'),
+
+  // V1.3 — lead_scores table
+  () => checkTable('lead_scores'),
+
+  // V4.2 — notification_preferences table
+  () => checkTable('notification_preferences'),
+
+  // V5.1 — blog_posts table + blog-images bucket
+  () => checkTable('blog_posts'),
+  () => checkBucket('blog-images'),
 ];
 
 function pad(s, n) {
@@ -136,22 +209,41 @@ function pad(s, n) {
   const tracker = await checkTracker();
   console.log('');
   if (tracker.ok) {
-    console.log(`  ✅ tracker — ${tracker.rows.length} migration row(s) applied`);
+    console.log(`  ✅ Z2 tracker — ${tracker.rows.length} migration row(s) applied`);
     for (const row of tracker.rows) {
       console.log(`     • ${row.filename}  (${row.applied_at})`);
     }
   } else {
     failed++;
-    console.log(`  ❌ tracker — could not read public._z2_migrations_applied`);
+    console.log(`  ❌ Z2 tracker — could not read public._z2_migrations_applied`);
     if (tracker.body) console.log(`     body: ${String(tracker.body).slice(0, 200)}`);
+  }
+
+  // Phase V tracker — separate table (_w_migrations_applied).
+  const phaseVTracker = await checkPhaseVTracker();
+  console.log('');
+  if (phaseVTracker.ok) {
+    console.log(
+      `  ✅ Phase V tracker — ${phaseVTracker.rows.length} migration row(s) applied`
+    );
+    for (const row of phaseVTracker.rows) {
+      console.log(`     • ${row.filename}  (${row.applied_at})`);
+    }
+  } else {
+    failed++;
+    console.log(
+      `  ❌ Phase V tracker — could not read public._w_migrations_applied`
+    );
+    if (phaseVTracker.body)
+      console.log(`     body: ${String(phaseVTracker.body).slice(0, 200)}`);
   }
 
   console.log('');
   if (failed > 0) {
     console.log(
-      `${failed} check(s) failed. Paste ai-documents/Z2-apply-all.sql into the Supabase SQL Editor and re-run this script.`
+      `${failed} check(s) failed. For Phase Z2 → paste ai-documents/Z2-apply-all.sql. For Phase V → paste ai-documents/W-apply-all.sql (or run pnpm exec node scripts/apply-phase-v-migrations.mjs). Then re-run this script.`
     );
     process.exit(1);
   }
-  console.log('All checks passed — DB is up to date with Phase Z2.');
+  console.log('All checks passed — DB is up to date with Phase Z2 + Phase V.');
 })();

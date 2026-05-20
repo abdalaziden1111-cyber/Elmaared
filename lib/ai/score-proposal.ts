@@ -12,6 +12,7 @@ import { assertDailyBudget, RateLimitError } from './rate-limit';
 import { hashKey, readCache, writeCache } from './cache';
 import { recordUsage } from './usage-log';
 import { computeCost } from './cost';
+import { flags } from '@/lib/feature-flags';
 import { log } from '@/lib/utils/logger';
 
 export const scoreSchema = z.object({
@@ -119,12 +120,19 @@ export async function scoreProposal(input: ScoreInput): Promise<void> {
     ai_price_range_max: market.priceMax,
   };
 
-  if (!aiGateway) {
+  // Phase W3 — when FF_AI_REAL=false (or gateway not configured), skip
+  // the real API call. The W2 seed pre-populates ai_score_cache + a
+  // realistic ai_summary on demo proposals; new (non-seeded) proposals
+  // get a clearly-marked [mock] summary so the UI still has content to
+  // show without ever billing for AI usage.
+  if (!aiGateway || !flags.AI_REAL) {
     await admin
       .from('proposals')
       .update({
         ai_score: null,
-        ai_summary: '[scoring skipped — AI gateway not configured]',
+        ai_summary: !aiGateway
+          ? '[scoring skipped — AI gateway not configured]'
+          : '[mock — set NEXT_PUBLIC_FF_AI_REAL=true + AI_GATEWAY_API_KEY to enable real scoring]',
         ...marketUpdate,
       })
       .eq('id', input.proposalId);

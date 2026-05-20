@@ -45,6 +45,18 @@ export const flags = {
 
   /** Decision #11 — PDPL consent banner on first visit */
   PDPL_CONSENT: readFlag(process.env.NEXT_PUBLIC_FF_PDPL),
+
+  /**
+   * Phase V1.1 — when true AND `AI_GATEWAY_API_KEY` is set, AI flows
+   * (scoreProposal, analyzeAgreement, score-lead narrative) hit the real
+   * Vercel AI Gateway → Anthropic Claude. When false (default), the
+   * existing gateway-null fallback runs and the live UI is carried by
+   * the W2 seeded mock data (rows tagged `model: 'mock-seed'`).
+   *
+   * Flip to `true` once you've added `AI_GATEWAY_API_KEY` and are ready
+   * to incur real per-call cost — daily cap stays $1/user (V1.1).
+   */
+  AI_REAL: readFlag(process.env.NEXT_PUBLIC_FF_AI_REAL),
 } as const;
 
 export type FeatureFlag = keyof typeof flags;
