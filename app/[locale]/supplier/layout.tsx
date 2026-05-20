@@ -10,6 +10,7 @@ const SUPPLIER_NAV: { href: string; label: string }[] = [
   { href: '/supplier/rfqs', label: 'الطلبات المتاحة' },
   { href: '/supplier/proposals', label: 'عروضي' },
   { href: '/supplier/projects', label: 'مشاريعي' },
+  { href: '/supplier/chats', label: 'المحادثات' },
   { href: '/supplier/earnings', label: 'أرباحي' },
   { href: '/supplier/notifications', label: 'الإشعارات' },
   { href: '/supplier/profile/portfolio', label: 'ملفي' },
