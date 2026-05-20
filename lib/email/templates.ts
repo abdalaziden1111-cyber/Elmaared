@@ -79,3 +79,60 @@ export function rfqMatchEmail(v: RfqMatchVars): { subject: string; html: string 
   `;
   return { subject, html: shell({ preview: subject, body }) };
 }
+
+// V1.3 — Hot-lead transition alert to admins. Triggered by the nightly
+// batch when a user's category flips from non-hot → hot AND no email has
+// been sent in the last 7 days for that user.
+export interface LeadHotTransitionVars {
+  userName: string;
+  userEmail: string;
+  role: 'client' | 'supplier';
+  score: number;
+  previousCategory: 'warm' | 'cold' | null;
+  adminLeadsUrl: string;
+  highlightSignals: string[];
+}
+
+export function leadHotTransitionEmail(
+  v: LeadHotTransitionVars
+): { subject: string; html: string } {
+  const subject = `لقاء جديد ساخن 🔥 — ${v.userName} (${v.score}/100)`;
+  const safe = {
+    userName: escapeHtml(v.userName),
+    userEmail: escapeHtml(v.userEmail),
+    role: escapeHtml(v.role === 'client' ? 'عميل' : 'مورد'),
+    score: escapeHtml(String(v.score)),
+    previousCategory: escapeHtml(
+      v.previousCategory === 'warm' ? 'دافئ' : v.previousCategory === 'cold' ? 'بارد' : 'جديد'
+    ),
+    adminLeadsUrl: escapeAttr(v.adminLeadsUrl),
+    signalsHtml: v.highlightSignals
+      .map(
+        (s) =>
+          `<li style="padding:4px 0;color:${COLORS.charcoal};font-size:13px;">${escapeHtml(s)}</li>`
+      )
+      .join(''),
+  };
+  const body = `
+    <h1 style="font-size:20px;color:${COLORS.midnight};margin:0 0 12px 0;">لقاء انتقل للحالة الساخنة</h1>
+    <p style="font-size:14px;line-height:1.6;color:${COLORS.charcoal};margin:0 0 12px 0;">
+      المستخدم <strong>${safe.userName}</strong> (${safe.role}) انتقل من <strong>${safe.previousCategory}</strong> إلى <strong>ساخن 🔥</strong>.
+    </p>
+    <div style="background:${COLORS.cream};padding:16px;border-radius:8px;margin-bottom:16px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:${COLORS.stone600};">الاسم</span><span style="color:${COLORS.charcoal};font-weight:600;">${safe.userName}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:${COLORS.stone600};">البريد</span><span style="color:${COLORS.charcoal};font-weight:600;">${safe.userEmail}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:${COLORS.stone600};">الدور</span><span style="color:${COLORS.charcoal};font-weight:600;">${safe.role}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:${COLORS.stone600};">الدرجة</span><span style="color:${COLORS.gold};font-weight:700;">${safe.score}/100</span></div>
+    </div>
+    ${
+      v.highlightSignals.length > 0
+        ? `<p style="font-size:13px;color:${COLORS.stone600};margin:0 0 8px 0;">أبرز الإشارات:</p>
+           <ul style="margin:0 0 16px 18px;padding:0;">${safe.signalsHtml}</ul>`
+        : ''
+    }
+    <div style="text-align:center;padding:16px 0;">
+      <a href="${safe.adminLeadsUrl}" style="display:inline-block;padding:10px 20px;background:${COLORS.midnight};color:${COLORS.cream};text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">افتح لوحة اللقاءات ←</a>
+    </div>
+  `;
+  return { subject, html: shell({ preview: subject, body }) };
+}

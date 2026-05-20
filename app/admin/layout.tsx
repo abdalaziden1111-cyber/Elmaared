@@ -22,7 +22,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
   },
   {
     title: 'المستخدمون',
-    links: [{ href: '/admin/users', label: 'كل المستخدمين' }],
+    links: [
+      { href: '/admin/users', label: 'كل المستخدمين' },
+      { href: '/admin/leads', label: 'اللقاءات (Leads)' },
+    ],
   },
   {
     title: 'الموردون',
