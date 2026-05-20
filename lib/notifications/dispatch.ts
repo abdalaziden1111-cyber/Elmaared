@@ -18,6 +18,7 @@ import {
   buildNotification,
   notificationTypeOf,
   type BuildNotificationArgs,
+  type RecipientRole,
 } from './build';
 import type { NotificationType } from './category';
 import { notificationEmail } from '@/lib/email/notification-template';
@@ -90,21 +91,25 @@ async function lookupEmail(
 }
 
 /**
- * Lookup the recipient's preferred locale for URL building.
+ * Lookup the recipient's preferred locale and role in one round-trip.
+ * Role drives role-aware link routing in buildNotification() so that
+ * `message` and `agreement_pending` notifications fired at a supplier
+ * land on the supplier surface rather than 404-ing on a client-only URL.
  */
-async function lookupLocale(
+async function lookupRecipient(
   admin: AdminSupabase,
   userId: string
-): Promise<string | null> {
+): Promise<{ locale: string | null; role: RecipientRole | null }> {
   const { data } = await admin
     .from('profiles')
-    .select('preferred_language')
+    .select('preferred_language, role')
     .eq('id', userId)
     .maybeSingle();
-  return (
-    (data as { preferred_language: string | null } | null)?.preferred_language ??
-    null
-  );
+  const row = data as { preferred_language: string | null; role: RecipientRole | null } | null;
+  return {
+    locale: row?.preferred_language ?? null,
+    role: row?.role ?? null,
+  };
 }
 
 export async function dispatchNotification(
@@ -132,8 +137,8 @@ export async function dispatchNotification(
     new Date()
   );
 
-  const locale = await lookupLocale(admin, dispatch.userId);
-  const payload = buildNotification(dispatch.args, locale);
+  const { locale, role } = await lookupRecipient(admin, dispatch.userId);
+  const payload = buildNotification(dispatch.args, locale, role);
 
   // 1. In-app insert (unless opted out).
   if (!inAppOff) {

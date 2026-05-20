@@ -15,6 +15,7 @@ import type { Database } from '@/lib/supabase/types';
 
 type NotificationType = Database['public']['Enums']['notification_type'];
 export type NotificationLocale = 'ar' | 'en';
+export type RecipientRole = 'client' | 'supplier' | 'admin';
 
 export interface NotificationPayload {
   title: string;
@@ -62,9 +63,11 @@ function adminUrl(path: string): string {
 
 export function buildNotification(
   args: BuildNotificationArgs,
-  locale: string | null | undefined = DEFAULT_LOCALE
+  locale: string | null | undefined = DEFAULT_LOCALE,
+  recipientRole: RecipientRole | null | undefined = null
 ): NotificationPayload {
   const l = normalizeLocale(locale);
+  const isSupplier = recipientRole === 'supplier';
   switch (args.type) {
     case 'rfq_match':
       return {
@@ -100,7 +103,11 @@ export function buildNotification(
       return {
         title: 'الاتفاق ينتظر فهمك',
         body: `اكتب فهمك لمشروع ${args.rfqNumber}`,
-        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/agreement`),
+        // Suppliers don't have an /agreement subpage — surface the RFQ
+        // detail and let the page render the pending-agreement panel.
+        link: isSupplier
+          ? supplierUrl(l, `/supplier/rfqs/${args.rfqId}`)
+          : clientUrl(l, `/dashboard/rfqs/${args.rfqId}/agreement`),
       };
     case 'escrow_deposit_required':
       return {
@@ -142,7 +149,11 @@ export function buildNotification(
       return {
         title: `رسالة من ${args.senderName}`,
         body: truncate(args.preview, 120),
-        link: clientUrl(l, `/dashboard/rfqs/${args.rfqId}/chats/${args.chatId}`),
+        // Suppliers reach chats via the flat /supplier/chats list;
+        // clients reach them via the RFQ-scoped nested route.
+        link: isSupplier
+          ? supplierUrl(l, `/supplier/chats/${args.chatId}`)
+          : clientUrl(l, `/dashboard/rfqs/${args.rfqId}/chats/${args.chatId}`),
       };
     case 'system':
       return {

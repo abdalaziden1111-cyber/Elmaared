@@ -128,6 +128,71 @@ describe('notificationTypeOf', () => {
   });
 });
 
+describe('buildNotification — role-aware link routing (B-011)', () => {
+  it('routes a supplier `message` to /supplier/chats/<chatId>', () => {
+    const out = buildNotification(
+      {
+        type: 'message',
+        senderName: 'Sara',
+        rfqId: 'rfq-1',
+        chatId: 'chat-1',
+        preview: 'hello',
+      },
+      'ar',
+      'supplier'
+    );
+    expect(out.link).toMatch(/\/ar\/supplier\/chats\/chat-1$/);
+  });
+
+  it('routes a client `message` to /dashboard/rfqs/<id>/chats/<chatId>', () => {
+    const out = buildNotification(
+      {
+        type: 'message',
+        senderName: 'Sara',
+        rfqId: 'rfq-1',
+        chatId: 'chat-1',
+        preview: 'hello',
+      },
+      'ar',
+      'client'
+    );
+    expect(out.link).toMatch(/\/ar\/dashboard\/rfqs\/rfq-1\/chats\/chat-1$/);
+  });
+
+  it('routes a supplier `agreement_pending` to /supplier/rfqs/<id> (no /agreement subpage on supplier side)', () => {
+    const out = buildNotification(
+      { type: 'agreement_pending', rfqNumber: 'RFQ-1', rfqId: 'rfq-1' },
+      'ar',
+      'supplier'
+    );
+    expect(out.link).toMatch(/\/ar\/supplier\/rfqs\/rfq-1$/);
+    expect(out.link).not.toContain('/dashboard/');
+  });
+
+  it('routes a client `agreement_pending` to /dashboard/rfqs/<id>/agreement', () => {
+    const out = buildNotification(
+      { type: 'agreement_pending', rfqNumber: 'RFQ-1', rfqId: 'rfq-1' },
+      'ar',
+      'client'
+    );
+    expect(out.link).toMatch(/\/ar\/dashboard\/rfqs\/rfq-1\/agreement$/);
+  });
+
+  it('defaults to client routing when role is null/undefined (preserves old behaviour for callers that do not yet pass a role)', () => {
+    const out = buildNotification(
+      {
+        type: 'message',
+        senderName: 'Sara',
+        rfqId: 'rfq-1',
+        chatId: 'chat-1',
+        preview: 'hello',
+      },
+      'ar'
+    );
+    expect(out.link).toMatch(/\/ar\/dashboard\/rfqs\/rfq-1\/chats\/chat-1$/);
+  });
+});
+
 describe('buildNotification — recipient locale routing', () => {
   it('defaults to /ar prefix when no locale passed', () => {
     const out = buildNotification({
