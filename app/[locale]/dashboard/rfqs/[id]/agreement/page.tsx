@@ -87,6 +87,22 @@ export default async function ClientAgreementPage({
         </p>
       )}
 
+      {/* Phase W4.3 — surface a quick-glance badge when AI flagged risky
+          clauses, so users don't miss the panel inside the AI section. */}
+      {Array.isArray(ag.ai_risky_clauses) &&
+      (ag.ai_risky_clauses as unknown[]).length > 0 ? (
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-[var(--color-warning,#B45309)] bg-[var(--color-warning-50,#FFFBEB)] px-3 py-2 text-sm text-[var(--color-warning,#B45309)]">
+          <span aria-hidden>⚠</span>
+          <span>
+            تحليل قانوني متاح —{' '}
+            <strong className="font-semibold">
+              {(ag.ai_risky_clauses as unknown[]).length} بنود تحتاج مراجعة
+            </strong>
+            . تحقّق منها أسفل قسم تحليل AI قبل التوقيع.
+          </span>
+        </div>
+      ) : null}
+
       {ag.ai_recommendation ? (
         <section className="mt-8 rounded-2xl bg-[var(--color-stone-100)] p-5">
           <h2 className="text-base font-semibold">تحليل الذكاء الاصطناعي</h2>

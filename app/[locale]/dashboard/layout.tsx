@@ -9,6 +9,7 @@ const CLIENT_NAV: { href: string; label: string }[] = [
   { href: '/dashboard/rfqs', label: 'طلباتي' },
   { href: '/discover', label: 'استكشف الموردين' },
   { href: '/dashboard/notifications', label: 'الإشعارات' },
+  { href: '/dashboard/notifications/preferences', label: 'تفضيلات الإشعارات' },
   { href: '/dashboard/settings/profile', label: 'الإعدادات الشخصية' },
   { href: '/dashboard/settings/company', label: 'بيانات الشركة' },
 ];
