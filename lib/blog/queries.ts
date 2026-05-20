@@ -5,7 +5,13 @@
 // remain open via the published-only policy when using anon-key, but
 // going through admin here keeps the data path uniform with the rest of
 // the marketing site.
+//
+// Phase V2.2 — public list + slug queries are wrapped in unstable_cache
+// with the 'blog-list' tag so revalidateTag('blog-list') in
+// app/actions/blog.ts actually invalidates them. 1-hour fallback TTL
+// covers the (unlikely) case of an admin editing the DB directly.
 
+import { unstable_cache } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export interface BlogPostListItem {
@@ -38,8 +44,10 @@ const FULL_COLUMNS = `${LIST_COLUMNS}, content_ar, content_en, seo_title_ar, seo
 /**
  * Returns { posts, hasMore }. The page slice is computed in-memory after
  * the limit-N+1 query so we know whether to show "next page".
+ *
+ * V2.2 — wrapped in unstable_cache below; this is the raw query.
  */
-export async function listPublishedPosts(args: {
+async function listPublishedPostsUncached(args: {
   page?: number;
   pageSize?: number;
   tag?: string | null;
@@ -68,7 +76,7 @@ export async function listPublishedPosts(args: {
   return { posts, hasMore, page };
 }
 
-export async function getPostBySlug(slug: string): Promise<BlogPostFull | null> {
+async function getPostBySlugUncached(slug: string): Promise<BlogPostFull | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('blog_posts')
@@ -116,3 +124,17 @@ export async function getRelatedPosts(args: {
   });
   return candidates.slice(0, limit);
 }
+
+// V2.2 — public-facing cached wrappers. revalidateTag('blog-list') in
+// app/actions/blog.ts invalidates both. Fallback TTL = 1 hour.
+export const listPublishedPosts = unstable_cache(
+  listPublishedPostsUncached,
+  ['blog:list-published-posts'],
+  { tags: ['blog-list'], revalidate: 3600 }
+);
+
+export const getPostBySlug = unstable_cache(
+  getPostBySlugUncached,
+  ['blog:get-post-by-slug'],
+  { tags: ['blog-list'], revalidate: 3600 }
+);
