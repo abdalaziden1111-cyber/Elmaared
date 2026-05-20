@@ -5,12 +5,12 @@ import { MarketRange } from '@/components/ai/market-range';
 describe('MarketRange', () => {
   it('renders the fallback card when level is unknown', () => {
     render(<MarketRange level="unknown" min={null} max={null} sampleSize={0} />);
-    expect(screen.getByText(/لا توجد بيانات سوقية كافية/)).toBeInTheDocument();
+    expect(screen.getByText(/نحتاج ٤ عروض تاريخية/)).toBeInTheDocument();
   });
 
   it('renders the fallback when range is missing even at a known level', () => {
     render(<MarketRange level="low" min={null} max={40000} sampleSize={5} />);
-    expect(screen.getByText(/لا توجد بيانات سوقية كافية/)).toBeInTheDocument();
+    expect(screen.getByText(/نحتاج ٤ عروض تاريخية/)).toBeInTheDocument();
   });
 
   it('shows the bar and both anchors when a valid range is provided', () => {

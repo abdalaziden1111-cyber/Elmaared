@@ -53,7 +53,7 @@ export function MarketRange({
       >
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-[var(--color-stone-600)]">
-            لا توجد بيانات سوقية كافية بعد لهذه الفئة — سنعرض النطاق فور تجمّع ٤ عروض أو أكثر.
+            نحتاج ٤ عروض تاريخية أو أكثر على فئات مشابهة — عبر المنصة، خلال آخر ١٢ شهراً — لرسم نطاق سوقي موثوق. سنعرض النطاق فور توفّر بيانات كافية لهذه الفئة.
           </p>
           <ConfidenceBadge
             level={level}
