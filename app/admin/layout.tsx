@@ -61,6 +61,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
     ],
   },
   {
+    title: 'المحتوى',
+    links: [{ href: '/admin/blog', label: 'المدوّنة' }],
+  },
+  {
     title: 'النظام',
     links: [
       { href: '/admin/activity', label: 'سجل النشاط' },
