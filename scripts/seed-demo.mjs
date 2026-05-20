@@ -576,22 +576,30 @@ async function deleteAllForClient(clientId) {
     .in('user_id', [clientId, baseSupplierOwnerId, adminId].filter(Boolean));
   await sb.from('blog_posts').delete().like('slug', 'demo-w2-%');
 
-  // ── W2.1 Milestones history ──
-  // 6 personal firsts spread across past 60 days + 100k_gmv claimed
-  // 7 days ago. 500k_gmv left UNCLAIMED → CelebrationModal will fire
-  // on next dashboard visit. 1m_gmv + yearly_anniversary deliberately
-  // absent (locked).
+  // ── W2.1 Milestones history (B-003 fix) ──
+  // The CelebrationGate only fires for milestones that the dashboard
+  // server component explicitly checks: `first_deal` and `first_rfq`
+  // (see app/[locale]/dashboard/page.tsx around line 110). Earlier seed
+  // also inserted `first_rfq` AND `500k_gmv` was expected to fire — both
+  // assumptions were wrong: `first_rfq` was claimed (modal won't re-fire)
+  // and `500k_gmv` isn't in the dashboard's check list at all.
+  //
+  // Fix: leave `first_rfq` UNCLAIMED so the gate picks it up on Ahmed's
+  // next dashboard visit. (rfqs.length > 0 is true post-seed → the
+  // `first_rfq` branch fires.)
   const dayMs = 86400_000;
   const milestoneSeed = [
-    { type: 'first_rfq', days: 58 },
+    // first_rfq deliberately NOT inserted — modal fires for it on next visit.
     { type: 'first_proposal_received', days: 55 },
     { type: 'first_chat_opened', days: 50 },
     { type: 'first_agreement_signed', days: 30 },
     { type: 'first_escrow_funded', days: 28 },
     { type: 'first_project_completed', days: 10 },
     { type: '100k_gmv', days: 7 },
-    // 500k_gmv NOT inserted — modal fires for it
-    // 1m_gmv NOT inserted — locked
+    // 500k_gmv NOT inserted — but the dashboard doesn't currently check
+    // for it either, so this is documentation-only. Wiring it into the
+    // CelebrationGate is a follow-up if we want it to trigger the modal.
+    // 1m_gmv NOT inserted — locked.
   ];
   for (const m of milestoneSeed) {
     const { error } = await sb.from('user_milestones').insert({
@@ -604,7 +612,7 @@ async function deleteAllForClient(clientId) {
     }
   }
   console.log(
-    `  ✓ W2.1: 7 milestones seeded for ahmed (500k_gmv unclaimed → modal fires)`
+    `  ✓ W2.1: 6 milestones seeded for ahmed (first_rfq unclaimed → CelebrationModal fires next visit)`
   );
 
   // ── W2.2 AI usage log (50 rows) ──
