@@ -17,6 +17,33 @@
   /* #7A766F is too light on cream — fails WCAG AA at 14px. Darkened to #5F5B55 (4.93:1 vs cream). */
   --color-stone-600: #5F5B55;
   --color-charcoal: #1A1A1A;
+
+  /* === Landing page extended palette (from Claude Design handoff) ===
+     The marketing landing has a deeper "deal table" green ladder, a lime
+     accent for CTAs, and warm paper surfaces. Kept separate from the app
+     palette so dashboard surfaces stay on midnight-green. */
+  --color-deal-green-950: #061A11;
+  --color-deal-green-900: #0B2E20;
+  --color-deal-green-800: #0F3A2A;
+  --color-deal-green-700: #155F3D;
+  --color-deal-green-600: #1A7148;
+  --color-deal-green-500: #1F8A5A;
+  --color-deal-green-400: #34B97D;
+  --color-deal-green-300: #7FE0B0;
+  --color-deal-green-200: #C8F2DC;
+  --color-deal-green-100: #E6F7EC;
+  --color-lime: #C8FF66;
+  --color-lime-2: #B6EB52;
+  --color-paper: #FBF8F2;
+  --color-paper-cream: #F4F0E8;
+  --color-paper-cream-2: #EBE5D7;
+  --color-paper-line: #E0DACB;
+  --color-paper-line-2: #D2CBB9;
+  --color-paper-ink: #0A1612;
+  --color-paper-ink-2: #2A3530;
+  --color-paper-muted: #6B7570;
+  --color-gold-soft: #F5E6B8;
+  --color-pink: #E94B7E;
   /* #16A34A fails WCAG AA on white (3.29:1). Darkened to #15803D (4.52:1). */
   --color-success: #15803D;
   --color-success-100: #DCFCE7;
